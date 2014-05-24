@@ -1,0 +1,1907 @@
+; main.SRC generated from: main.c
+; COMPILER INVOKED BY:
+;        C:\Keil\C51\BIN\C51.EXE main.c BROWSE CODE SYMBOLS SRC DEBUG OBJECTEXTEND
+
+$NOMOD51
+
+NAME	MAIN
+
+P0	DATA	080H
+P1	DATA	090H
+P2	DATA	0A0H
+P3	DATA	0B0H
+AC	BIT	0D0H.6
+T0	BIT	0B0H.4
+T1	BIT	0B0H.5
+EA	BIT	0A8H.7
+IE	DATA	0A8H
+P0_0	BIT	080H.0
+P1_0	BIT	090H.0
+P0_1	BIT	080H.1
+P2_0	BIT	0A0H.0
+P1_1	BIT	090H.1
+P0_2	BIT	080H.2
+P3_0	BIT	0B0H.0
+P2_1	BIT	0A0H.1
+P1_2	BIT	090H.2
+P0_3	BIT	080H.3
+P3_1	BIT	0B0H.1
+P2_2	BIT	0A0H.2
+P1_3	BIT	090H.3
+P0_4	BIT	080H.4
+P3_2	BIT	0B0H.2
+P2_3	BIT	0A0H.3
+P1_4	BIT	090H.4
+P0_5	BIT	080H.5
+RD	BIT	0B0H.7
+P3_3	BIT	0B0H.3
+P2_4	BIT	0A0H.4
+P1_5	BIT	090H.5
+P0_6	BIT	080H.6
+P3_4	BIT	0B0H.4
+P2_5	BIT	0A0H.5
+P1_6	BIT	090H.6
+P0_7	BIT	080H.7
+P3_5	BIT	0B0H.5
+ES	BIT	0A8H.4
+P2_6	BIT	0A0H.6
+P1_7	BIT	090H.7
+P3_6	BIT	0B0H.6
+P2_7	BIT	0A0H.7
+IP	DATA	0B8H
+P3_7	BIT	0B0H.7
+RI	BIT	098H.0
+CY	BIT	0D0H.7
+INT0	BIT	0B0H.2
+INT1	BIT	0B0H.3
+TI	BIT	098H.1
+PS	BIT	0B8H.4
+SP	DATA	081H
+OV	BIT	0D0H.2
+WR	BIT	0B0H.6
+SBUF	DATA	099H
+PCON	DATA	087H
+SCON	DATA	098H
+TMOD	DATA	089H
+TCON	DATA	088H
+IE0	BIT	088H.1
+IE1	BIT	088H.3
+B	DATA	0F0H
+ACC	DATA	0E0H
+ET0	BIT	0A8H.1
+ET1	BIT	0A8H.3
+TF0	BIT	088H.5
+ET2	BIT	0A8H.5
+TF1	BIT	088H.7
+RB8	BIT	098H.2
+TH0	DATA	08CH
+EX0	BIT	0A8H.0
+IT0	BIT	088H.0
+TH1	DATA	08DH
+EX1	BIT	0A8H.2
+TB8	BIT	098H.3
+IT1	BIT	088H.2
+P	BIT	0D0H.0
+SM0	BIT	098H.7
+TL0	DATA	08AH
+SM1	BIT	098H.6
+TL1	DATA	08BH
+SM2	BIT	098H.5
+PT0	BIT	0B8H.1
+RS0	BIT	0D0H.3
+PT1	BIT	0B8H.3
+RS1	BIT	0D0H.4
+PT2	BIT	0B8H.5
+TR0	BIT	088H.4
+TR1	BIT	088H.6
+PX0	BIT	0B8H.0
+PX1	BIT	0B8H.2
+DPH	DATA	083H
+DPL	DATA	082H
+REN	BIT	098H.4
+RXD	BIT	0B0H.0
+TXD	BIT	0B0H.1
+F0	BIT	0D0H.5
+F1	BIT	0D0H.1
+PSW	DATA	0D0H
+?PR?main?MAIN        SEGMENT CODE 
+?PR?init_8051?MAIN   SEGMENT CODE 
+?PR?play_music?MAIN  SEGMENT CODE 
+?PR?stop_music?MAIN  SEGMENT CODE 
+?PR?timer?MAIN       SEGMENT CODE 
+?PR?reset_timer?MAIN SEGMENT CODE 
+?PR?check_button?MAIN                    SEGMENT CODE 
+?PR?_display_seg?MAIN                    SEGMENT CODE 
+?DT?_display_seg?MAIN                    SEGMENT DATA OVERLAYABLE 
+?PR?clock_count_up?MAIN                  SEGMENT CODE 
+?PR?clock_run?MAIN   SEGMENT CODE 
+?PR?set_clock_hour?MAIN                  SEGMENT CODE 
+?PR?set_clock_min?MAIN                   SEGMENT CODE 
+?PR?set_alarm_hour?MAIN                  SEGMENT CODE 
+?PR?set_alarm_min?MAIN                   SEGMENT CODE 
+?PR?timer0?MAIN      SEGMENT CODE 
+?PR?timer1?MAIN      SEGMENT CODE 
+?C_INITSEG           SEGMENT CODE 
+?DT?MAIN             SEGMENT DATA 
+	EXTRN	CODE (?C_STARTUP)
+	PUBLIC	cnt1ms_for_5ms
+	PUBLIC	tune_low
+	PUBLIC	song_pos
+	PUBLIC	cnt200ms_for_1s
+	PUBLIC	seg_arr
+	PUBLIC	song_stop
+	PUBLIC	alarm_enable
+	PUBLIC	cnt10ms_for_20ms
+	PUBLIC	song_bee
+	PUBLIC	tune_high
+	PUBLIC	tune_index
+	PUBLIC	cnt100ms_for_200ms
+	PUBLIC	alarm_min
+	PUBLIC	clock_min
+	PUBLIC	alarm_hour
+	PUBLIC	clock_hour
+	PUBLIC	seg_number
+	PUBLIC	cnt5ms_for_10ms
+	PUBLIC	button_status
+	PUBLIC	state
+	PUBLIC	flags
+	PUBLIC	cnt20ms_for_100ms
+	PUBLIC	timer1
+	PUBLIC	timer0
+	PUBLIC	set_alarm_min
+	PUBLIC	set_alarm_hour
+	PUBLIC	set_clock_min
+	PUBLIC	set_clock_hour
+	PUBLIC	clock_run
+	PUBLIC	clock_count_up
+	PUBLIC	_display_seg
+	PUBLIC	check_button
+	PUBLIC	reset_timer
+	PUBLIC	timer
+	PUBLIC	stop_music
+	PUBLIC	play_music
+	PUBLIC	init_8051
+	PUBLIC	main
+
+	RSEG  ?DT?_display_seg?MAIN
+?_display_seg?BYTE:
+  temp_hour?742:   DS   1
+	ORG  1
+   temp_min?743:   DS   1
+
+	RSEG  ?DT?MAIN
+cnt20ms_for_100ms:   DS   1
+          flags:   DS   2
+          state:   DS   1
+  button_status:   DS   4
+cnt5ms_for_10ms:   DS   1
+     seg_number:   DS   1
+     clock_hour:   DS   1
+     alarm_hour:   DS   1
+      clock_min:   DS   1
+      alarm_min:   DS   1
+cnt100ms_for_200ms:   DS   1
+     tune_index:   DS   1
+      tune_high:   DS   8
+       song_bee:   DS   64
+cnt10ms_for_20ms:   DS   1
+   alarm_enable:   DS   1
+      song_stop:   DS   1
+        seg_arr:   DS   10
+cnt200ms_for_1s:   DS   1
+       song_pos:   DS   1
+       tune_low:   DS   8
+ cnt1ms_for_5ms:   DS   1
+
+	RSEG  ?C_INITSEG
+	DB	00AH
+	DB	seg_arr
+	DB	0C0H
+	DB	0F9H
+	DB	0A4H
+	DB	0B0H
+	DB	099H
+	DB	092H
+	DB	082H
+	DB	0D8H
+	DB	080H
+	DB	090H
+
+	DB	008H
+	DB	tune_high
+	DB	000H
+	DB	0FEH
+	DB	0FEH
+	DB	0FEH
+	DB	0FEH
+	DB	0FEH
+	DB	0FEH
+	DB	0FFH
+
+	DB	008H
+	DB	tune_low
+	DB	000H
+	DB	046H
+	DB	077H
+	DB	0A1H
+	DB	0B5H
+	DB	0D9H
+	DB	0F3H
+	DB	016H
+
+	DB	020H
+	DB	040H
+	DB	song_bee
+	DB	005H
+	DB	003H
+	DB	003H
+	DB	003H
+	DB	004H
+	DB	002H
+	DB	002H
+	DB	002H
+	DB	001H
+	DB	002H
+	DB	003H
+	DB	004H
+	DB	005H
+	DB	005H
+	DB	005H
+	DB	005H
+	DB	005H
+	DB	003H
+	DB	003H
+	DB	003H
+	DB	004H
+	DB	002H
+	DB	002H
+	DB	002H
+	DB	001H
+	DB	003H
+	DB	005H
+	DB	005H
+	DB	003H
+	DB	003H
+	DB	003H
+	DB	003H
+	DB	002H
+	DB	002H
+	DB	002H
+	DB	002H
+	DB	002H
+	DB	003H
+	DB	004H
+	DB	004H
+	DB	003H
+	DB	003H
+	DB	003H
+	DB	003H
+	DB	003H
+	DB	004H
+	DB	005H
+	DB	005H
+	DB	005H
+	DB	003H
+	DB	003H
+	DB	003H
+	DB	004H
+	DB	002H
+	DB	002H
+	DB	002H
+	DB	001H
+	DB	003H
+	DB	005H
+	DB	005H
+	DB	001H
+	DB	001H
+	DB	001H
+	DB	001H
+
+; #include<AT89x51.h>
+; 
+; 
+; #define LED0    P1_0
+; #define LED1    P1_1
+; #define LED2    P1_2
+; #define LED3    P1_3
+; #define LED4    P1_4
+; #define LED5    P1_5
+; #define LED6    P1_6
+; #define LED7    P1_7
+; #define LED_ON  0
+; #define LED_OFF 1
+; 
+; #define SEGMENT P0
+; #define SEG0    P2_0
+; #define SEG1    P2_1
+; #define SEG2    P2_2
+; #define SEG3    P2_3
+; 
+; #define B0      P2_4
+; #define B1      P2_5
+; #define B2      P2_6
+; #define B3      P2_7
+; 
+; #define SPK     P3_6
+; #define SPK_ON  0
+; #define SPK_OFF 1
+; 
+; 
+; 
+; struct Flags {
+;     unsigned t1ms:1;
+;     unsigned t5ms:1;
+;     unsigned t10ms:1;
+;     unsigned t20ms:1;
+;     unsigned t100ms:1;
+;     unsigned t200ms:1;
+;     unsigned t1s:1;
+; 
+;     unsigned b0_click:1;
+;     unsigned b1_click:1;
+;     unsigned b2_click:1;
+;     unsigned b3_click:1;
+; 
+; } flags;
+; 
+; enum State {
+;     CLOCK_RUN,
+;     SET_CLOCK_HOUR,
+;     SET_CLOCK_MIN,
+;     SET_ALARM_HOUR,
+;     SET_ALARM_MIN
+; } state;
+; 
+; unsigned char cnt1ms_for_5ms,
+;               cnt5ms_for_10ms,
+;               cnt10ms_for_20ms,
+;               cnt20ms_for_100ms,
+;               cnt100ms_for_200ms,
+;               cnt200ms_for_1s;
+; 
+; 
+; unsigned char seg_arr[10] = {0xc0,0xf9,0xa4,0Xb0,0x99,0x92,0x82,0xd8,0x80,0X90};
+; // 65535 - 1/fep/2*921583
+; unsigned char tune_high[8] = { 0, 0xFE, 0xFE, 0xFE, 0xFE, 0xFE, 0xFE, 0xFF};
+; unsigned char tune_low[8] = { 0, 0x46, 0x77, 0xA1, 0xB5, 0xD9, 0xF3, 0x16};
+; unsigned char song_bee[] = {
+;     5, 3, 3, 3, 4, 2, 2, 2, 1, 2, 3, 4, 5, 5, 5, 5,
+;     5, 3, 3, 3, 4, 2, 2, 2, 1, 3, 5, 5, 3, 3 ,3, 3,
+;     2, 2, 2, 2, 2, 3, 4, 4, 3, 3, 3, 3, 3, 4, 5, 5,
+;     5, 3, 3, 3, 4, 2, 2, 2, 1, 3, 5, 5, 1, 1, 1, 1};
+; unsigned char song_pos;
+; unsigned char tune_index;
+; unsigned char song_stop;
+; unsigned char  clock_hour, clock_min;
+; unsigned char  alarm_hour, alarm_min;
+; unsigned char alarm_enable;
+; unsigned char seg_number;
+; 
+; unsigned char button_status[4];
+; 
+; 
+; void init_8051(void);
+; void timer(void);
+; void reset_timer(void);
+; void check_button(void);
+; void display_seg(unsigned char hour, unsigned char min);
+; void check_state(void);
+; void clock_count_up(void);
+; void play_music(void);
+; 
+; void clock_run();
+; void set_clock_hour();
+; void set_clock_min();
+; void set_alarm_hour();
+; void set_alarm_min();
+; 
+; void main(void) {
+
+	RSEG  ?PR?main?MAIN
+main:
+	USING	0
+			; SOURCE LINE # 99
+;     init_8051();
+			; SOURCE LINE # 100
+	LCALL	init_8051
+?C0001:
+;     while(1) {
+			; SOURCE LINE # 101
+;         timer();
+			; SOURCE LINE # 102
+	LCALL	timer
+;         if (flags.t200ms && LED6 == LED_ON) {
+			; SOURCE LINE # 103
+	MOV  	A,flags+01H
+	JNB  	ACC.5,?C0003
+	JB   	P1_6,?C0003
+;             flags.t200ms = 0;
+			; SOURCE LINE # 104
+	ANL  	flags+01H,#0DFH
+;             song_pos = (song_pos + 1) % sizeof(song_bee);
+			; SOURCE LINE # 105
+	MOV  	A,song_pos
+	INC  	A
+	ANL  	A,#03FH
+	MOV  	song_pos,A
+;             tune_index = song_bee[song_pos];
+			; SOURCE LINE # 106
+	ADD  	A,#LOW (song_bee)
+	MOV  	R0,A
+	MOV  	A,@R0
+	MOV  	tune_index,A
+;         }
+			; SOURCE LINE # 107
+?C0003:
+;         switch(state) {
+			; SOURCE LINE # 108
+	MOV  	A,state
+	DEC  	A
+	JZ   	?C0006
+	DEC  	A
+	JZ   	?C0007
+	DEC  	A
+	JZ   	?C0008
+	DEC  	A
+	JZ   	?C0009
+	ADD  	A,#04H
+	JNZ  	?C0001
+;             case CLOCK_RUN:
+			; SOURCE LINE # 109
+?C0005:
+;                 clock_run();
+			; SOURCE LINE # 110
+	LCALL	clock_run
+;                 break;
+			; SOURCE LINE # 111
+	SJMP 	?C0001
+;             case SET_CLOCK_HOUR:
+			; SOURCE LINE # 112
+?C0006:
+;                 set_clock_hour();
+			; SOURCE LINE # 113
+	LCALL	set_clock_hour
+;                 break;
+			; SOURCE LINE # 114
+	SJMP 	?C0001
+;             case SET_CLOCK_MIN:
+			; SOURCE LINE # 115
+?C0007:
+;                 set_clock_min();
+			; SOURCE LINE # 116
+	LCALL	set_clock_min
+;                 break;
+			; SOURCE LINE # 117
+	SJMP 	?C0001
+;             case SET_ALARM_HOUR:
+			; SOURCE LINE # 118
+?C0008:
+;                 set_alarm_hour();
+			; SOURCE LINE # 119
+	LCALL	set_alarm_hour
+;                 break;
+			; SOURCE LINE # 120
+	SJMP 	?C0001
+;             case SET_ALARM_MIN:
+			; SOURCE LINE # 121
+?C0009:
+;                 set_alarm_min();
+			; SOURCE LINE # 122
+	LCALL	set_alarm_min
+;                 break;
+			; SOURCE LINE # 123
+	SJMP 	?C0001
+; END OF main
+
+;         }
+;     }
+; }
+; 
+; void init_8051(void) {
+
+	RSEG  ?PR?init_8051?MAIN
+init_8051:
+			; SOURCE LINE # 128
+;     TMOD |= 0x11;
+			; SOURCE LINE # 129
+	ORL  	TMOD,#011H
+;     TH0 = 0xFC;
+			; SOURCE LINE # 130
+	MOV  	TH0,#0FCH
+;     TL0 = 0x66;
+			; SOURCE LINE # 131
+	MOV  	TL0,#066H
+;     TR0 = 1;
+			; SOURCE LINE # 132
+	SETB 	TR0
+;     EA = 1;
+			; SOURCE LINE # 133
+	SETB 	EA
+;     ET0 = 1;
+			; SOURCE LINE # 134
+	SETB 	ET0
+;     LED0 = LED_ON;
+			; SOURCE LINE # 135
+	CLR  	P1_0
+; }
+			; SOURCE LINE # 136
+	RET  	
+; END OF init_8051
+
+; 
+; void play_music() {
+
+	RSEG  ?PR?play_music?MAIN
+play_music:
+	USING	0
+			; SOURCE LINE # 138
+;     song_pos = 0;
+			; SOURCE LINE # 139
+	CLR  	A
+	MOV  	song_pos,A
+;     tune_index = song_bee[song_pos];
+			; SOURCE LINE # 140
+	MOV  	A,#LOW (song_bee)
+	ADD  	A,song_pos
+	MOV  	R0,A
+	MOV  	A,@R0
+	MOV  	tune_index,A
+;     TH1 = tune_high[tune_index];
+			; SOURCE LINE # 141
+	ADD  	A,#LOW (tune_high)
+	MOV  	R0,A
+	MOV  	A,@R0
+	MOV  	TH1,A
+;     TL1 = tune_low[tune_index];
+			; SOURCE LINE # 142
+	MOV  	A,#LOW (tune_low)
+	ADD  	A,tune_index
+	MOV  	R0,A
+	MOV  	A,@R0
+	MOV  	TL1,A
+;     TR1 = 1;
+			; SOURCE LINE # 143
+	SETB 	TR1
+;     ET1 = 1;
+			; SOURCE LINE # 144
+	SETB 	ET1
+;     LED6 = LED_ON;
+			; SOURCE LINE # 145
+	CLR  	P1_6
+; }
+			; SOURCE LINE # 146
+	RET  	
+; END OF play_music
+
+; 
+; void stop_music() {
+
+	RSEG  ?PR?stop_music?MAIN
+stop_music:
+			; SOURCE LINE # 148
+;     TR1 = 0;
+			; SOURCE LINE # 149
+	CLR  	TR1
+;     ET1 = 0;
+			; SOURCE LINE # 150
+	CLR  	ET1
+;     SPK = SPK_OFF;
+			; SOURCE LINE # 151
+	SETB 	P3_6
+;     LED6 = LED_OFF;
+			; SOURCE LINE # 152
+	SETB 	P1_6
+; }
+			; SOURCE LINE # 153
+	RET  	
+; END OF stop_music
+
+; 
+; void timer(void) {
+
+	RSEG  ?PR?timer?MAIN
+timer:
+			; SOURCE LINE # 155
+;     if(flags.t1ms)
+			; SOURCE LINE # 156
+	MOV  	A,flags+01H
+	JNB  	ACC.0,?C0014
+;     {
+			; SOURCE LINE # 157
+;         flags.t1ms = 0;
+			; SOURCE LINE # 158
+	ANL  	flags+01H,#0FEH
+;         cnt1ms_for_5ms++;
+			; SOURCE LINE # 159
+	INC  	cnt1ms_for_5ms
+;     }
+			; SOURCE LINE # 160
+?C0014:
+; 
+;     if(cnt1ms_for_5ms >= 5) {
+			; SOURCE LINE # 162
+	MOV  	A,cnt1ms_for_5ms
+	CLR  	C
+	SUBB 	A,#05H
+	JC   	?C0015
+;         cnt1ms_for_5ms = 0;
+			; SOURCE LINE # 163
+	CLR  	A
+	MOV  	cnt1ms_for_5ms,A
+;         flags.t5ms = 1;
+			; SOURCE LINE # 164
+	ORL  	flags+01H,#02H
+;         cnt5ms_for_10ms++;
+			; SOURCE LINE # 165
+	INC  	cnt5ms_for_10ms
+;     }
+			; SOURCE LINE # 166
+?C0015:
+; 
+;     if(cnt5ms_for_10ms >= 2) {
+			; SOURCE LINE # 168
+	MOV  	A,cnt5ms_for_10ms
+	CLR  	C
+	SUBB 	A,#02H
+	JC   	?C0016
+;         cnt5ms_for_10ms = 0;
+			; SOURCE LINE # 169
+	CLR  	A
+	MOV  	cnt5ms_for_10ms,A
+;         flags.t10ms = 1;
+			; SOURCE LINE # 170
+	ORL  	flags+01H,#04H
+;         cnt10ms_for_20ms++;
+			; SOURCE LINE # 171
+	INC  	cnt10ms_for_20ms
+;     }
+			; SOURCE LINE # 172
+?C0016:
+; 
+;     if(cnt10ms_for_20ms >= 2) {
+			; SOURCE LINE # 174
+	MOV  	A,cnt10ms_for_20ms
+	CLR  	C
+	SUBB 	A,#02H
+	JC   	?C0017
+;         cnt10ms_for_20ms = 0;
+			; SOURCE LINE # 175
+	CLR  	A
+	MOV  	cnt10ms_for_20ms,A
+;         flags.t20ms = 1;
+			; SOURCE LINE # 176
+	ORL  	flags+01H,#08H
+;         cnt20ms_for_100ms++;
+			; SOURCE LINE # 177
+	INC  	cnt20ms_for_100ms
+;     }
+			; SOURCE LINE # 178
+?C0017:
+; 
+;     if(cnt20ms_for_100ms >= 5) {
+			; SOURCE LINE # 180
+	MOV  	A,cnt20ms_for_100ms
+	CLR  	C
+	SUBB 	A,#05H
+	JC   	?C0018
+;         cnt20ms_for_100ms = 0;
+			; SOURCE LINE # 181
+	CLR  	A
+	MOV  	cnt20ms_for_100ms,A
+;         flags.t100ms = 1;
+			; SOURCE LINE # 182
+	ORL  	flags+01H,#010H
+;         cnt100ms_for_200ms++;
+			; SOURCE LINE # 183
+	INC  	cnt100ms_for_200ms
+;     }
+			; SOURCE LINE # 184
+?C0018:
+; 
+;     if(cnt100ms_for_200ms >= 2) {
+			; SOURCE LINE # 186
+	MOV  	A,cnt100ms_for_200ms
+	CLR  	C
+	SUBB 	A,#02H
+	JC   	?C0019
+;         cnt100ms_for_200ms = 0;
+			; SOURCE LINE # 187
+	CLR  	A
+	MOV  	cnt100ms_for_200ms,A
+;         flags.t200ms = 1;
+			; SOURCE LINE # 188
+	ORL  	flags+01H,#020H
+;         cnt200ms_for_1s++;
+			; SOURCE LINE # 189
+	INC  	cnt200ms_for_1s
+;     }
+			; SOURCE LINE # 190
+?C0019:
+; 
+;     if(cnt200ms_for_1s >= 5) {
+			; SOURCE LINE # 192
+	MOV  	A,cnt200ms_for_1s
+	CLR  	C
+	SUBB 	A,#05H
+	JC   	?C0021
+;         cnt200ms_for_1s = 0;
+			; SOURCE LINE # 193
+	CLR  	A
+	MOV  	cnt200ms_for_1s,A
+;         flags.t1s = 1;
+			; SOURCE LINE # 194
+	ORL  	flags+01H,#040H
+;     }
+			; SOURCE LINE # 195
+; }
+			; SOURCE LINE # 196
+?C0021:
+	RET  	
+; END OF timer
+
+; 
+; void reset_timer(void) {
+
+	RSEG  ?PR?reset_timer?MAIN
+reset_timer:
+			; SOURCE LINE # 198
+;     flags.t1ms = 0;
+			; SOURCE LINE # 199
+	ANL  	flags+01H,#0FEH
+;     flags.t5ms = 0;
+			; SOURCE LINE # 200
+	ANL  	flags+01H,#0FDH
+;     flags.t10ms = 0;
+			; SOURCE LINE # 201
+	ANL  	flags+01H,#0FBH
+;     flags.t20ms = 0;
+			; SOURCE LINE # 202
+	ANL  	flags+01H,#0F7H
+;     flags.t100ms = 0;
+			; SOURCE LINE # 203
+	ANL  	flags+01H,#0EFH
+;     flags.t1s = 0;
+			; SOURCE LINE # 204
+	ANL  	flags+01H,#0BFH
+; 
+;     cnt1ms_for_5ms = 0;
+			; SOURCE LINE # 206
+	CLR  	A
+	MOV  	cnt1ms_for_5ms,A
+;     cnt5ms_for_10ms = 0;
+			; SOURCE LINE # 207
+	MOV  	cnt5ms_for_10ms,A
+;     cnt10ms_for_20ms = 0;
+			; SOURCE LINE # 208
+	MOV  	cnt10ms_for_20ms,A
+;     cnt20ms_for_100ms = 0;
+			; SOURCE LINE # 209
+	MOV  	cnt20ms_for_100ms,A
+;     cnt200ms_for_1s = 0;
+			; SOURCE LINE # 210
+	MOV  	cnt200ms_for_1s,A
+; }
+			; SOURCE LINE # 211
+	RET  	
+; END OF reset_timer
+
+; 
+; void check_button(void) {
+
+	RSEG  ?PR?check_button?MAIN
+L?0122:
+	USING	0
+	ANL  	flags+01H,#0F7H
+check_button:
+	USING	0
+			; SOURCE LINE # 213
+;     button_status[0] |= 0x01;
+			; SOURCE LINE # 214
+	ORL  	button_status,#01H
+;     button_status[1] |= 0x01;
+			; SOURCE LINE # 215
+	ORL  	button_status+01H,#01H
+;     button_status[2] |= 0x01;
+			; SOURCE LINE # 216
+	ORL  	button_status+02H,#01H
+;     button_status[3] |= 0x01;
+			; SOURCE LINE # 217
+	ORL  	button_status+03H,#01H
+; 
+;     if(B0 == 0 && B1 && B2 && B3) {
+			; SOURCE LINE # 219
+	JB   	P2_4,?C0023
+	JNB  	P2_5,?C0023
+	JNB  	P2_6,?C0023
+	JNB  	P2_7,?C0023
+;         button_status[0] &= 0xFE;
+			; SOURCE LINE # 220
+	ANL  	button_status,#0FEH
+;     }
+			; SOURCE LINE # 221
+?C0023:
+;     if(B1 == 0 && B0 && B2 && B3) {
+			; SOURCE LINE # 222
+	JB   	P2_5,?C0024
+	JNB  	P2_4,?C0024
+	JNB  	P2_6,?C0024
+	JNB  	P2_7,?C0024
+;         button_status[1] &= 0xFE;
+			; SOURCE LINE # 223
+	ANL  	button_status+01H,#0FEH
+;     }
+			; SOURCE LINE # 224
+?C0024:
+;     if(B2 == 0 && B0 && B1 && B3) {
+			; SOURCE LINE # 225
+	JB   	P2_6,?C0025
+	JNB  	P2_4,?C0025
+	JNB  	P2_5,?C0025
+	JNB  	P2_7,?C0025
+;         button_status[2] &= 0xFE;
+			; SOURCE LINE # 226
+	ANL  	button_status+02H,#0FEH
+;     }
+			; SOURCE LINE # 227
+?C0025:
+;     if(B3 == 0 && B0 && B1 && B2) {
+			; SOURCE LINE # 228
+	JB   	P2_7,?C0026
+	JNB  	P2_4,?C0026
+	JNB  	P2_5,?C0026
+	JNB  	P2_6,?C0026
+;         button_status[3] &= 0xFE;
+			; SOURCE LINE # 229
+	ANL  	button_status+03H,#0FEH
+;     }
+			; SOURCE LINE # 230
+?C0026:
+; 
+;     flags.b0_click = button_status[0] == 0xFC ? 1 : 0;
+			; SOURCE LINE # 232
+	MOV  	A,button_status
+	CJNE 	A,#0FCH,?C0027
+	MOV  	R7,#01H
+	SJMP 	?C0028
+?C0027:
+	MOV  	R7,#00H
+?C0028:
+	MOV  	R6,#00H
+	MOV  	A,R7
+	ANL  	A,#01H
+	MOV  	R0,#07H
+?C0119:
+	CLR  	C
+	RLC  	A
+	XCH  	A,R6
+	RLC  	A
+	XCH  	A,R6
+	DJNZ 	R0,?C0119
+	MOV  	R7,A
+	MOV  	A,flags+01H
+	ANL  	A,#07FH
+	MOV  	R5,A
+	MOV  	A,flags
+	ORL  	A,R6
+	MOV  	flags,A
+	MOV  	A,R5
+	ORL  	A,R7
+	MOV  	flags+01H,A
+;     flags.b1_click = button_status[1] == 0xFC ? 1 : 0;
+			; SOURCE LINE # 233
+	MOV  	A,button_status+01H
+	CJNE 	A,#0FCH,?C0029
+	MOV  	R7,#01H
+	SJMP 	?C0030
+?C0029:
+	MOV  	R7,#00H
+?C0030:
+	MOV  	A,R7
+	ANL  	A,#01H
+	MOV  	R6,A
+	MOV  	A,flags
+	ANL  	A,#0FEH
+	ORL  	A,R6
+	MOV  	flags,A
+	MOV  	A,flags+01H
+	MOV  	flags+01H,A
+;     flags.b2_click = button_status[2] == 0xFC ? 1 : 0;
+			; SOURCE LINE # 234
+	MOV  	A,button_status+02H
+	CJNE 	A,#0FCH,?C0031
+	MOV  	R7,#01H
+	SJMP 	?C0032
+?C0031:
+	MOV  	R7,#00H
+?C0032:
+	MOV  	A,R7
+	ANL  	A,#01H
+	ADD  	A,ACC
+	MOV  	R6,A
+	MOV  	A,flags
+	ANL  	A,#0FDH
+	ORL  	A,R6
+	MOV  	flags,A
+	MOV  	A,flags+01H
+	MOV  	flags+01H,A
+;     flags.b3_click = button_status[3] == 0xFC ? 1 : 0;
+			; SOURCE LINE # 235
+	MOV  	A,button_status+03H
+	CJNE 	A,#0FCH,?C0033
+	MOV  	R7,#01H
+	SJMP 	?C0034
+?C0033:
+	MOV  	R7,#00H
+?C0034:
+	MOV  	A,R7
+	ANL  	A,#01H
+	ADD  	A,ACC
+	ADD  	A,ACC
+	MOV  	R6,A
+	MOV  	A,flags
+	ANL  	A,#0FBH
+	ORL  	A,R6
+	MOV  	flags,A
+	MOV  	A,flags+01H
+	MOV  	flags+01H,A
+; 
+; 
+;     button_status[0] <<= 1;
+			; SOURCE LINE # 238
+	MOV  	A,button_status
+	ADD  	A,ACC
+	MOV  	button_status,A
+;     button_status[1] <<= 1;
+			; SOURCE LINE # 239
+	MOV  	A,button_status+01H
+	ADD  	A,ACC
+	MOV  	button_status+01H,A
+;     button_status[2] <<= 1;
+			; SOURCE LINE # 240
+	MOV  	A,button_status+02H
+	ADD  	A,ACC
+	MOV  	button_status+02H,A
+;     button_status[3] <<= 1;
+			; SOURCE LINE # 241
+	MOV  	A,button_status+03H
+	ADD  	A,ACC
+	MOV  	button_status+03H,A
+; }
+			; SOURCE LINE # 242
+	RET  	
+; END OF check_button
+
+; 
+; void display_seg(unsigned char hour, unsigned char min) {
+
+	RSEG  ?PR?_display_seg?MAIN
+L?0120:
+	USING	0
+L?0121:
+	ANL  	flags+01H,#0FDH
+	MOV  	R5,clock_min
+	MOV  	R7,clock_hour
+_display_seg:
+	USING	0
+			; SOURCE LINE # 244
+;---- Variable 'min?741' assigned to Register 'R5' ----
+;---- Variable 'hour?740' assigned to Register 'R7' ----
+;     volatile unsigned char temp_hour = hour, 
+			; SOURCE LINE # 245
+	MOV  	temp_hour?742,R7
+;                            temp_min = min;
+			; SOURCE LINE # 246
+	MOV  	temp_min?743,R5
+;     
+;     seg_number++;
+			; SOURCE LINE # 248
+	INC  	seg_number
+;     seg_number = seg_number % 4;
+			; SOURCE LINE # 249
+	ANL  	seg_number,#03H
+; 
+;     SEGMENT = 0xff;
+			; SOURCE LINE # 251
+	MOV  	P0,#0FFH
+;     SEG0 = 1;
+			; SOURCE LINE # 252
+	SETB 	P2_0
+;     SEG1 = 1;
+			; SOURCE LINE # 253
+	SETB 	P2_1
+;     SEG2 = 1;
+			; SOURCE LINE # 254
+	SETB 	P2_2
+;     SEG3 = 1;
+			; SOURCE LINE # 255
+	SETB 	P2_3
+; 
+;     switch(seg_number) {
+			; SOURCE LINE # 257
+	MOV  	A,seg_number
+	DEC  	A
+	JZ   	?C0038
+	DEC  	A
+	JZ   	?C0039
+	DEC  	A
+	JZ   	?C0040
+	ADD  	A,#03H
+	JNZ  	?C0041
+;         case 0:
+			; SOURCE LINE # 258
+?C0037:
+;             SEGMENT = seg_arr[temp_hour / 10];
+			; SOURCE LINE # 259
+	MOV  	A,temp_hour?742
+	MOV  	B,#0AH
+	DIV  	AB
+	ADD  	A,#LOW (seg_arr)
+	MOV  	R0,A
+	MOV  	A,@R0
+	MOV  	P0,A
+;             SEG0 = 0;
+			; SOURCE LINE # 260
+	CLR  	P2_0
+;             break;
+			; SOURCE LINE # 261
+	RET  	
+;         case 1:
+			; SOURCE LINE # 262
+?C0038:
+;             SEGMENT = seg_arr[temp_hour % 10];
+			; SOURCE LINE # 263
+	MOV  	A,temp_hour?742
+	MOV  	B,#0AH
+	DIV  	AB
+	MOV  	A,#LOW (seg_arr)
+	ADD  	A,B
+	MOV  	R0,A
+	MOV  	A,@R0
+	MOV  	P0,A
+;             SEG1 = 0;
+			; SOURCE LINE # 264
+	CLR  	P2_1
+;             break;
+			; SOURCE LINE # 265
+	RET  	
+;         case 2:
+			; SOURCE LINE # 266
+?C0039:
+;             SEGMENT = seg_arr[temp_min / 10];
+			; SOURCE LINE # 267
+	MOV  	A,temp_min?743
+	MOV  	B,#0AH
+	DIV  	AB
+	ADD  	A,#LOW (seg_arr)
+	MOV  	R0,A
+	MOV  	A,@R0
+	MOV  	P0,A
+;             SEG2 = 0;
+			; SOURCE LINE # 268
+	CLR  	P2_2
+;             break;
+			; SOURCE LINE # 269
+	RET  	
+;         case 3:
+			; SOURCE LINE # 270
+?C0040:
+;             SEGMENT = seg_arr[temp_min % 10];
+			; SOURCE LINE # 271
+	MOV  	A,temp_min?743
+	MOV  	B,#0AH
+	DIV  	AB
+	MOV  	A,#LOW (seg_arr)
+	ADD  	A,B
+	MOV  	R0,A
+	MOV  	A,@R0
+	MOV  	P0,A
+;             SEG3 = 0;
+			; SOURCE LINE # 272
+	CLR  	P2_3
+;             break;
+			; SOURCE LINE # 273
+	RET  	
+;         default:
+			; SOURCE LINE # 274
+?C0041:
+;             SEGMENT = 0xff;
+			; SOURCE LINE # 275
+	MOV  	P0,#0FFH
+;             SEG0 = 1;
+			; SOURCE LINE # 276
+	SETB 	P2_0
+;             SEG1 = 1;
+			; SOURCE LINE # 277
+	SETB 	P2_1
+;             SEG2 = 1;
+			; SOURCE LINE # 278
+	SETB 	P2_2
+;             SEG3 = 1;
+			; SOURCE LINE # 279
+	SETB 	P2_3
+;     }
+			; SOURCE LINE # 280
+; }
+			; SOURCE LINE # 281
+?C0042:
+	RET  	
+; END OF _display_seg
+
+; 
+; void clock_count_up(void) {
+
+	RSEG  ?PR?clock_count_up?MAIN
+L?0123:
+	USING	0
+	ANL  	flags+01H,#0BFH
+clock_count_up:
+			; SOURCE LINE # 283
+;     clock_min++;
+			; SOURCE LINE # 284
+	INC  	clock_min
+;     if(clock_min >= 60) {
+			; SOURCE LINE # 285
+	MOV  	A,clock_min
+	CLR  	C
+	SUBB 	A,#03CH
+	JC   	?C0043
+;         clock_hour++;
+			; SOURCE LINE # 286
+	INC  	clock_hour
+;         clock_min = 0;
+			; SOURCE LINE # 287
+	CLR  	A
+	MOV  	clock_min,A
+;     }
+			; SOURCE LINE # 288
+?C0043:
+;     if(clock_hour >= 24) {
+			; SOURCE LINE # 289
+	MOV  	A,clock_hour
+	CLR  	C
+	SUBB 	A,#018H
+	JC   	?C0045
+;         clock_hour = 0;
+			; SOURCE LINE # 290
+	CLR  	A
+	MOV  	clock_hour,A
+;     }
+			; SOURCE LINE # 291
+; }
+			; SOURCE LINE # 292
+?C0045:
+	RET  	
+; END OF clock_count_up
+
+; 
+; void clock_run() {
+
+	RSEG  ?PR?clock_run?MAIN
+clock_run:
+	USING	0
+			; SOURCE LINE # 294
+;     if(flags.t5ms) {
+			; SOURCE LINE # 295
+	MOV  	A,flags+01H
+	JNB  	ACC.1,?C0046
+;         flags.t5ms = 0;
+			; SOURCE LINE # 296
+;         display_seg(clock_hour, clock_min);
+			; SOURCE LINE # 297
+	LCALL	L?0120
+;     }
+			; SOURCE LINE # 298
+?C0046:
+; 
+;     if(flags.t20ms) {
+			; SOURCE LINE # 300
+	MOV  	A,flags+01H
+	JNB  	ACC.3,?C0047
+;         flags.t20ms = 0;
+			; SOURCE LINE # 301
+;         check_button();
+			; SOURCE LINE # 302
+	LCALL	L?0122
+;         if(flags.b0_click) {
+			; SOURCE LINE # 303
+	MOV  	A,flags+01H
+	JNB  	ACC.7,?C0048
+;             LED0 = LED_OFF;
+			; SOURCE LINE # 304
+	SETB 	P1_0
+;             LED1 = LED_ON;
+			; SOURCE LINE # 305
+	CLR  	P1_1
+;             state = SET_CLOCK_HOUR;
+			; SOURCE LINE # 306
+	MOV  	state,#01H
+;         }
+			; SOURCE LINE # 307
+	SJMP 	?C0047
+?C0048:
+;         else if(flags.b1_click) {
+			; SOURCE LINE # 308
+	MOV  	A,flags
+	JNB  	ACC.0,?C0050
+;             LED0 = LED_OFF;
+			; SOURCE LINE # 309
+	SETB 	P1_0
+;             LED3 = LED_ON;
+			; SOURCE LINE # 310
+	CLR  	P1_3
+;             state = SET_ALARM_HOUR;
+			; SOURCE LINE # 311
+	MOV  	state,#03H
+;         }
+			; SOURCE LINE # 312
+	SJMP 	?C0047
+?C0050:
+;         else if(flags.b2_click) {
+			; SOURCE LINE # 313
+	MOV  	A,flags
+	JNB  	ACC.1,?C0052
+;             stop_music();
+			; SOURCE LINE # 314
+	LCALL	stop_music
+;         }
+			; SOURCE LINE # 315
+	SJMP 	?C0047
+?C0052:
+;         else if(flags.b3_click) {
+			; SOURCE LINE # 316
+	MOV  	A,flags
+	JNB  	ACC.2,?C0047
+;             LED7 = ~LED7;
+			; SOURCE LINE # 317
+	CPL  	P1_7
+;             alarm_enable = ~alarm_enable;
+			; SOURCE LINE # 318
+	XRL  	alarm_enable,#0FFH
+;         }
+			; SOURCE LINE # 319
+;     }
+			; SOURCE LINE # 320
+?C0047:
+;     if(flags.t1s) {
+			; SOURCE LINE # 321
+	MOV  	A,flags+01H
+	JNB  	ACC.6,?C0058
+;         flags.t1s = 0;
+			; SOURCE LINE # 322
+;         clock_count_up();
+			; SOURCE LINE # 323
+	LCALL	L?0123
+;         if (alarm_enable) {
+			; SOURCE LINE # 324
+	MOV  	A,alarm_enable
+	JZ   	?C0058
+;             if (clock_hour == alarm_hour &&
+			; SOURCE LINE # 325
+	MOV  	A,clock_hour
+	CJNE 	A,alarm_hour,?C0058
+	MOV  	A,clock_min
+	CJNE 	A,alarm_min,?C0058
+;                 clock_min == alarm_min) {
+			; SOURCE LINE # 326
+;                 play_music();
+			; SOURCE LINE # 327
+	LCALL	play_music
+;             }
+			; SOURCE LINE # 328
+;         }
+			; SOURCE LINE # 329
+;     }
+			; SOURCE LINE # 330
+; }
+			; SOURCE LINE # 331
+?C0058:
+	RET  	
+; END OF clock_run
+
+; 
+; void set_clock_hour() {
+
+	RSEG  ?PR?set_clock_hour?MAIN
+set_clock_hour:
+	USING	0
+			; SOURCE LINE # 333
+;     if(flags.t5ms) {
+			; SOURCE LINE # 334
+	MOV  	A,flags+01H
+	JNB  	ACC.1,?C0059
+;         flags.t5ms = 0;
+			; SOURCE LINE # 335
+;         display_seg(clock_hour, clock_min);
+			; SOURCE LINE # 336
+	LCALL	L?0120
+;     }
+			; SOURCE LINE # 337
+?C0059:
+; 
+;     if(flags.t20ms) {
+			; SOURCE LINE # 339
+	MOV  	A,flags+01H
+	JNB  	ACC.3,?C0072
+;         flags.t20ms = 0;
+			; SOURCE LINE # 340
+;         check_button();
+			; SOURCE LINE # 341
+	LCALL	L?0122
+;         if(flags.b0_click) {
+			; SOURCE LINE # 342
+	MOV  	A,flags+01H
+	JNB  	ACC.7,?C0061
+;             LED1 = LED_OFF;
+			; SOURCE LINE # 343
+	SETB 	P1_1
+;             LED0 = LED_ON;
+			; SOURCE LINE # 344
+	CLR  	P1_0
+;             state = CLOCK_RUN;
+			; SOURCE LINE # 345
+	CLR  	A
+	MOV  	state,A
+;             reset_timer();
+			; SOURCE LINE # 346
+	LJMP 	reset_timer
+;         }
+			; SOURCE LINE # 347
+?C0061:
+;         else if(flags.b1_click) {
+			; SOURCE LINE # 348
+	MOV  	A,flags
+	JNB  	ACC.0,?C0063
+;             LED1 = LED_OFF;
+			; SOURCE LINE # 349
+	SETB 	P1_1
+;             LED2 = LED_ON;
+			; SOURCE LINE # 350
+	CLR  	P1_2
+;             state = SET_CLOCK_MIN;
+			; SOURCE LINE # 351
+	MOV  	state,#02H
+;         }
+			; SOURCE LINE # 352
+	RET  	
+?C0063:
+;         else if(flags.b2_click) {
+			; SOURCE LINE # 353
+	MOV  	A,flags
+	JNB  	ACC.1,?C0065
+;             if (clock_hour <= 0) {
+			; SOURCE LINE # 354
+	MOV  	A,clock_hour
+	SETB 	C
+	SUBB 	A,#00H
+	JNC  	?C0066
+;                 clock_hour = 23;
+			; SOURCE LINE # 355
+	MOV  	clock_hour,#017H
+;             } else{
+			; SOURCE LINE # 356
+	RET  	
+?C0066:
+;                 clock_hour--;
+			; SOURCE LINE # 357
+	DEC  	clock_hour
+;             }
+			; SOURCE LINE # 358
+;         }
+			; SOURCE LINE # 359
+	RET  	
+?C0065:
+;         else if(flags.b3_click) {
+			; SOURCE LINE # 360
+	MOV  	A,flags
+	JNB  	ACC.2,?C0072
+;             if (clock_hour >= 23) {
+			; SOURCE LINE # 361
+	MOV  	A,clock_hour
+	CLR  	C
+	SUBB 	A,#017H
+	JC   	?C0070
+;                 clock_hour = 0;
+			; SOURCE LINE # 362
+	CLR  	A
+	MOV  	clock_hour,A
+;             } else {
+			; SOURCE LINE # 363
+	RET  	
+?C0070:
+;                 clock_hour++;
+			; SOURCE LINE # 364
+	INC  	clock_hour
+;             }
+			; SOURCE LINE # 365
+;         }
+			; SOURCE LINE # 366
+;     }
+			; SOURCE LINE # 367
+; }
+			; SOURCE LINE # 368
+?C0072:
+	RET  	
+; END OF set_clock_hour
+
+; 
+; void set_clock_min() {
+
+	RSEG  ?PR?set_clock_min?MAIN
+set_clock_min:
+	USING	0
+			; SOURCE LINE # 370
+;     if(flags.t5ms) {
+			; SOURCE LINE # 371
+	MOV  	A,flags+01H
+	JNB  	ACC.1,?C0073
+;         flags.t5ms = 0;
+			; SOURCE LINE # 372
+;         display_seg(clock_hour, clock_min);
+			; SOURCE LINE # 373
+	LCALL	L?0121
+;     }
+			; SOURCE LINE # 374
+?C0073:
+; 
+;     if(flags.t20ms) {
+			; SOURCE LINE # 376
+	MOV  	A,flags+01H
+	JNB  	ACC.3,?C0086
+;         flags.t20ms = 0;
+			; SOURCE LINE # 377
+	ANL  	flags+01H,#0F7H
+;         check_button();
+			; SOURCE LINE # 378
+	LCALL	check_button
+;         if(flags.b0_click) {
+			; SOURCE LINE # 379
+	MOV  	A,flags+01H
+	JNB  	ACC.7,?C0075
+;             LED2 = LED_OFF;
+			; SOURCE LINE # 380
+	SETB 	P1_2
+;             LED0 = LED_ON;
+			; SOURCE LINE # 381
+	CLR  	P1_0
+;             state = CLOCK_RUN;
+			; SOURCE LINE # 382
+	CLR  	A
+	MOV  	state,A
+;             reset_timer();
+			; SOURCE LINE # 383
+	LJMP 	reset_timer
+;         }
+			; SOURCE LINE # 384
+?C0075:
+;         else if(flags.b1_click) {
+			; SOURCE LINE # 385
+	MOV  	A,flags
+	JNB  	ACC.0,?C0077
+;             LED2 = LED_OFF;
+			; SOURCE LINE # 386
+	SETB 	P1_2
+;             LED1 = LED_ON;
+			; SOURCE LINE # 387
+	CLR  	P1_1
+;             state = SET_CLOCK_HOUR;
+			; SOURCE LINE # 388
+	MOV  	state,#01H
+;         }
+			; SOURCE LINE # 389
+	RET  	
+?C0077:
+;         else if(flags.b2_click) {
+			; SOURCE LINE # 390
+	MOV  	A,flags
+	JNB  	ACC.1,?C0079
+;             if (clock_min <= 0) {
+			; SOURCE LINE # 391
+	MOV  	A,clock_min
+	SETB 	C
+	SUBB 	A,#00H
+	JNC  	?C0080
+;                 clock_min = 59;
+			; SOURCE LINE # 392
+	MOV  	clock_min,#03BH
+;             } else {
+			; SOURCE LINE # 393
+	RET  	
+?C0080:
+;                 clock_min--;
+			; SOURCE LINE # 394
+	DEC  	clock_min
+;             }
+			; SOURCE LINE # 395
+;         }
+			; SOURCE LINE # 396
+	RET  	
+?C0079:
+;         else if(flags.b3_click) {
+			; SOURCE LINE # 397
+	MOV  	A,flags
+	JNB  	ACC.2,?C0086
+;             if (clock_min >= 59) {
+			; SOURCE LINE # 398
+	MOV  	A,clock_min
+	CLR  	C
+	SUBB 	A,#03BH
+	JC   	?C0084
+;                 clock_min = 0;
+			; SOURCE LINE # 399
+	CLR  	A
+	MOV  	clock_min,A
+;             } else {
+			; SOURCE LINE # 400
+	RET  	
+?C0084:
+;                 clock_min++;
+			; SOURCE LINE # 401
+	INC  	clock_min
+;             }
+			; SOURCE LINE # 402
+;         }
+			; SOURCE LINE # 403
+;     }
+			; SOURCE LINE # 404
+; }
+			; SOURCE LINE # 405
+?C0086:
+	RET  	
+; END OF set_clock_min
+
+; 
+; void set_alarm_hour() {
+
+	RSEG  ?PR?set_alarm_hour?MAIN
+set_alarm_hour:
+	USING	0
+			; SOURCE LINE # 407
+;     if(flags.t5ms) {
+			; SOURCE LINE # 408
+	MOV  	A,flags+01H
+	JNB  	ACC.1,?C0087
+;         flags.t5ms = 0;
+			; SOURCE LINE # 409
+	ANL  	flags+01H,#0FDH
+;         display_seg(alarm_hour, alarm_min);
+			; SOURCE LINE # 410
+	MOV  	R5,alarm_min
+	MOV  	R7,alarm_hour
+	LCALL	_display_seg
+;     }
+			; SOURCE LINE # 411
+?C0087:
+; 
+;     if(flags.t20ms) {
+			; SOURCE LINE # 413
+	MOV  	A,flags+01H
+	JNB  	ACC.3,?C0088
+;         flags.t20ms = 0;
+			; SOURCE LINE # 414
+	ANL  	flags+01H,#0F7H
+;         check_button();
+			; SOURCE LINE # 415
+	LCALL	check_button
+;         if(flags.b0_click) {
+			; SOURCE LINE # 416
+	MOV  	A,flags+01H
+	JNB  	ACC.7,?C0089
+;             LED3 = LED_OFF;
+			; SOURCE LINE # 417
+	SETB 	P1_3
+;             LED0 = LED_ON;
+			; SOURCE LINE # 418
+	CLR  	P1_0
+;             state = CLOCK_RUN;
+			; SOURCE LINE # 419
+	CLR  	A
+	MOV  	state,A
+;             reset_timer();
+			; SOURCE LINE # 420
+	LCALL	reset_timer
+;         }
+			; SOURCE LINE # 421
+	SJMP 	?C0088
+?C0089:
+;         else if(flags.b1_click) {
+			; SOURCE LINE # 422
+	MOV  	A,flags
+	JNB  	ACC.0,?C0091
+;             LED3 = LED_OFF;
+			; SOURCE LINE # 423
+	SETB 	P1_3
+;             LED4 = LED_ON;
+			; SOURCE LINE # 424
+	CLR  	P1_4
+;             state = SET_ALARM_MIN;
+			; SOURCE LINE # 425
+	MOV  	state,#04H
+;         }
+			; SOURCE LINE # 426
+	SJMP 	?C0088
+?C0091:
+;         else if(flags.b2_click) {
+			; SOURCE LINE # 427
+	MOV  	A,flags
+	JNB  	ACC.1,?C0093
+;             if (alarm_hour <= 0) {
+			; SOURCE LINE # 428
+	MOV  	A,alarm_hour
+	SETB 	C
+	SUBB 	A,#00H
+	JNC  	?C0094
+;                 alarm_hour = 23;
+			; SOURCE LINE # 429
+	MOV  	alarm_hour,#017H
+;             } else{
+			; SOURCE LINE # 430
+	SJMP 	?C0088
+?C0094:
+;                 alarm_hour--;
+			; SOURCE LINE # 431
+	DEC  	alarm_hour
+;             }
+			; SOURCE LINE # 432
+;         }
+			; SOURCE LINE # 433
+	SJMP 	?C0088
+?C0093:
+;         else if(flags.b3_click) {
+			; SOURCE LINE # 434
+	MOV  	A,flags
+	JNB  	ACC.2,?C0088
+;             if (alarm_hour >= 23) {
+			; SOURCE LINE # 435
+	MOV  	A,alarm_hour
+	CLR  	C
+	SUBB 	A,#017H
+	JC   	?C0098
+;                 alarm_hour = 0;
+			; SOURCE LINE # 436
+	CLR  	A
+	MOV  	alarm_hour,A
+;             } else {
+			; SOURCE LINE # 437
+	SJMP 	?C0088
+?C0098:
+;                 alarm_hour++;
+			; SOURCE LINE # 438
+	INC  	alarm_hour
+;             }
+			; SOURCE LINE # 439
+;         }
+			; SOURCE LINE # 440
+;     }
+			; SOURCE LINE # 441
+?C0088:
+;     if(flags.t1s) {
+			; SOURCE LINE # 442
+	MOV  	A,flags+01H
+	JNB  	ACC.6,?C0101
+;         flags.t1s = 0;
+			; SOURCE LINE # 443
+;         clock_count_up();
+			; SOURCE LINE # 444
+	LCALL	L?0123
+;     }
+			; SOURCE LINE # 445
+; }
+			; SOURCE LINE # 446
+?C0101:
+	RET  	
+; END OF set_alarm_hour
+
+; 
+; void set_alarm_min() {
+
+	RSEG  ?PR?set_alarm_min?MAIN
+set_alarm_min:
+	USING	0
+			; SOURCE LINE # 448
+;     if(flags.t5ms) {
+			; SOURCE LINE # 449
+	MOV  	A,flags+01H
+	JNB  	ACC.1,?C0102
+;         flags.t5ms = 0;
+			; SOURCE LINE # 450
+	ANL  	flags+01H,#0FDH
+;         display_seg(alarm_hour, alarm_min);
+			; SOURCE LINE # 451
+	MOV  	R5,alarm_min
+	MOV  	R7,alarm_hour
+	LCALL	_display_seg
+;     }
+			; SOURCE LINE # 452
+?C0102:
+; 
+;     if(flags.t20ms) {
+			; SOURCE LINE # 454
+	MOV  	A,flags+01H
+	JNB  	ACC.3,?C0103
+;         flags.t20ms = 0;
+			; SOURCE LINE # 455
+	ANL  	flags+01H,#0F7H
+;         check_button();
+			; SOURCE LINE # 456
+	LCALL	check_button
+;         if(flags.b0_click) {
+			; SOURCE LINE # 457
+	MOV  	A,flags+01H
+	JNB  	ACC.7,?C0104
+;             LED4 = LED_OFF;
+			; SOURCE LINE # 458
+	SETB 	P1_4
+;             LED0 = LED_ON;
+			; SOURCE LINE # 459
+	CLR  	P1_0
+;             state = CLOCK_RUN;
+			; SOURCE LINE # 460
+	CLR  	A
+	MOV  	state,A
+;             reset_timer();
+			; SOURCE LINE # 461
+	LCALL	reset_timer
+;         }
+			; SOURCE LINE # 462
+	SJMP 	?C0103
+?C0104:
+;         else if(flags.b1_click) {
+			; SOURCE LINE # 463
+	MOV  	A,flags
+	JNB  	ACC.0,?C0106
+;             LED4 = LED_OFF;
+			; SOURCE LINE # 464
+	SETB 	P1_4
+;             LED3 = LED_ON;
+			; SOURCE LINE # 465
+	CLR  	P1_3
+;             state = SET_ALARM_HOUR;
+			; SOURCE LINE # 466
+	MOV  	state,#03H
+;         }
+			; SOURCE LINE # 467
+	SJMP 	?C0103
+?C0106:
+;         else if(flags.b2_click) {
+			; SOURCE LINE # 468
+	MOV  	A,flags
+	JNB  	ACC.1,?C0108
+;             if (alarm_min <= 0) {
+			; SOURCE LINE # 469
+	MOV  	A,alarm_min
+	SETB 	C
+	SUBB 	A,#00H
+	JNC  	?C0109
+;                 alarm_min = 59;
+			; SOURCE LINE # 470
+	MOV  	alarm_min,#03BH
+;             } else {
+			; SOURCE LINE # 471
+	SJMP 	?C0103
+?C0109:
+;                 alarm_min--;
+			; SOURCE LINE # 472
+	DEC  	alarm_min
+;             }
+			; SOURCE LINE # 473
+;         }
+			; SOURCE LINE # 474
+	SJMP 	?C0103
+?C0108:
+;         else if(flags.b3_click) {
+			; SOURCE LINE # 475
+	MOV  	A,flags
+	JNB  	ACC.2,?C0103
+;             if (alarm_min >= 59) {
+			; SOURCE LINE # 476
+	MOV  	A,alarm_min
+	CLR  	C
+	SUBB 	A,#03BH
+	JC   	?C0113
+;                 alarm_min = 0;
+			; SOURCE LINE # 477
+	CLR  	A
+	MOV  	alarm_min,A
+;             } else {
+			; SOURCE LINE # 478
+	SJMP 	?C0103
+?C0113:
+;                 alarm_min++;
+			; SOURCE LINE # 479
+	INC  	alarm_min
+;             }
+			; SOURCE LINE # 480
+;         }
+			; SOURCE LINE # 481
+;     }
+			; SOURCE LINE # 482
+?C0103:
+;     if(flags.t1s) {
+			; SOURCE LINE # 483
+	MOV  	A,flags+01H
+	JNB  	ACC.6,?C0116
+;         flags.t1s = 0;
+			; SOURCE LINE # 484
+	ANL  	flags+01H,#0BFH
+;         clock_count_up();
+			; SOURCE LINE # 485
+	LCALL	clock_count_up
+;     }
+			; SOURCE LINE # 486
+; }
+			; SOURCE LINE # 487
+?C0116:
+	RET  	
+; END OF set_alarm_min
+
+CSEG	AT	0000BH
+	LJMP	timer0
+
+; 
+; void timer0(void) interrupt 1 {
+
+	RSEG  ?PR?timer0?MAIN
+	USING	0
+timer0:
+			; SOURCE LINE # 489
+;     TH0 = 0xFC;
+			; SOURCE LINE # 490
+	MOV  	TH0,#0FCH
+;     TL0 = 0x66;
+			; SOURCE LINE # 491
+	MOV  	TL0,#066H
+;     TF0 = 0;
+			; SOURCE LINE # 492
+	CLR  	TF0
+;     flags.t1ms = 1;
+			; SOURCE LINE # 493
+	ORL  	flags+01H,#01H
+; }
+			; SOURCE LINE # 494
+	RETI 	
+; END OF timer0
+
+CSEG	AT	0001BH
+	LJMP	timer1
+
+; 
+; void timer1(void) interrupt 3 {
+
+	RSEG  ?PR?timer1?MAIN
+	USING	0
+timer1:
+	PUSH 	ACC
+	PUSH 	PSW
+	MOV  	PSW,#00H
+	PUSH 	AR0
+	USING	0
+			; SOURCE LINE # 496
+;     TH1 = tune_high[tune_index];
+			; SOURCE LINE # 497
+	MOV  	A,#LOW (tune_high)
+	ADD  	A,tune_index
+	MOV  	R0,A
+	MOV  	A,@R0
+	MOV  	TH1,A
+;     TL1 = tune_low[tune_index];
+			; SOURCE LINE # 498
+	MOV  	A,#LOW (tune_low)
+	ADD  	A,tune_index
+	MOV  	R0,A
+	MOV  	A,@R0
+	MOV  	TL1,A
+;     TF1 = 0;
+			; SOURCE LINE # 499
+	CLR  	TF1
+;     SPK = ~SPK;
+			; SOURCE LINE # 500
+	CPL  	P3_6
+; }
+			; SOURCE LINE # 501
+	POP  	AR0
+	POP  	PSW
+	POP  	ACC
+	RETI 	
+; END OF timer1
+
+	END
