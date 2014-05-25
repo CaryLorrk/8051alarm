@@ -129,7 +129,6 @@ PSW	DATA	0D0H
 	PUBLIC	song_pos
 	PUBLIC	cnt200ms_for_1s
 	PUBLIC	seg_arr
-	PUBLIC	song_stop
 	PUBLIC	alarm_enable
 	PUBLIC	cnt10ms_for_20ms
 	PUBLIC	song_bee
@@ -186,7 +185,6 @@ cnt100ms_for_200ms:   DS   1
        song_bee:   DS   64
 cnt10ms_for_20ms:   DS   1
    alarm_enable:   DS   1
-      song_stop:   DS   1
         seg_arr:   DS   10
 cnt200ms_for_1s:   DS   1
        song_pos:   DS   1
@@ -329,6 +327,7 @@ cnt200ms_for_1s:   DS   1
 ; 
 ; 
 ; struct Flags {
+;     /* flags for elapsed time */
 ;     unsigned t1ms:1;
 ;     unsigned t5ms:1;
 ;     unsigned t10ms:1;
@@ -337,6 +336,7 @@ cnt200ms_for_1s:   DS   1
 ;     unsigned t200ms:1;
 ;     unsigned t1s:1;
 ; 
+;     /* flags for button click */
 ;     unsigned b0_click:1;
 ;     unsigned b1_click:1;
 ;     unsigned b2_click:1;
@@ -344,6 +344,7 @@ cnt200ms_for_1s:   DS   1
 ; 
 ; } flags;
 ; 
+; /* finite state masine */
 ; enum State {
 ;     CLOCK_RUN,
 ;     SET_CLOCK_HOUR,
@@ -352,6 +353,7 @@ cnt200ms_for_1s:   DS   1
 ;     SET_ALARM_MIN
 ; } state;
 ; 
+; /* counter for time carrying */
 ; unsigned char cnt1ms_for_5ms,
 ;               cnt5ms_for_10ms,
 ;               cnt10ms_for_20ms,
@@ -360,8 +362,27 @@ cnt200ms_for_1s:   DS   1
 ;               cnt200ms_for_1s;
 ; 
 ; 
+; /* 0-9 for 7-segment display*/
 ; unsigned char seg_arr[10] = {0xc0,0xf9,0xa4,0Xb0,0x99,0x92,0x82,0xd8,0x80,0X90};
-; // 65535 - 1/fep/2*921583
+; 
+; /* which 7-segment we want to display */
+; unsigned char seg_number;
+; 
+; /* (TH, TL) = 65535 - 1 / F / 2 * 921583
+;  * 1 / F: T
+;  * T / 2: half for high voltage and half for low voltage
+;  * ___     ___     ___     ___     
+;  *    |   |   |   |   |   |   |   
+;  *    |___|   |___|   |___|   |___
+;  *    '   '       '       '
+;  *     T/2            T
+;  *     
+;  * 921583: machine cycle per second (11.059 MHz / 12)
+;  * T / 2 * 921583: number of count to flip voltage
+;  *
+;  * F: frequency
+;  * T: period
+;  */
 ; unsigned char tune_high[8] = { 0, 0xFE, 0xFE, 0xFE, 0xFE, 0xFE, 0xFE, 0xFF};
 ; unsigned char tune_low[8] = { 0, 0x46, 0x77, 0xA1, 0xB5, 0xD9, 0xF3, 0x16};
 ; unsigned char song_bee[] = {
@@ -369,14 +390,17 @@ cnt200ms_for_1s:   DS   1
 ;     5, 3, 3, 3, 4, 2, 2, 2, 1, 3, 5, 5, 3, 3 ,3, 3,
 ;     2, 2, 2, 2, 2, 3, 4, 4, 3, 3, 3, 3, 3, 4, 5, 5,
 ;     5, 3, 3, 3, 4, 2, 2, 2, 1, 3, 5, 5, 1, 1, 1, 1};
+; 
+; /* where we are in the song */
 ; unsigned char song_pos;
+; 
+; /* what current tune is */
 ; unsigned char tune_index;
-; unsigned char song_stop;
 ; unsigned char  clock_hour, clock_min;
 ; unsigned char  alarm_hour, alarm_min;
 ; unsigned char alarm_enable;
-; unsigned char seg_number;
 ; 
+; /* least resent 8 status for button */
 ; unsigned char button_status[4];
 ; 
 ; 
@@ -400,41 +424,47 @@ cnt200ms_for_1s:   DS   1
 	RSEG  ?PR?main?MAIN
 main:
 	USING	0
-			; SOURCE LINE # 99
+			; SOURCE LINE # 125
 ;     init_8051();
-			; SOURCE LINE # 100
+			; SOURCE LINE # 126
 	LCALL	init_8051
 ?C0001:
 ;     while(1) {
-			; SOURCE LINE # 101
+			; SOURCE LINE # 127
 ;         timer();
-			; SOURCE LINE # 102
+			; SOURCE LINE # 128
 	LCALL	timer
+;         /* if alarm is buzzing (LED6 is on),
+;          * play the next tune in the song per 200ms
+;          */
 ;         if (flags.t200ms && LED6 == LED_ON) {
-			; SOURCE LINE # 103
+			; SOURCE LINE # 132
 	MOV  	A,flags+01H
 	JNB  	ACC.5,?C0003
 	JB   	P1_6,?C0003
 ;             flags.t200ms = 0;
-			; SOURCE LINE # 104
+			; SOURCE LINE # 133
 	ANL  	flags+01H,#0DFH
+;             /* find the next tune.
+;              * go back to beginning at end.
+;              */
 ;             song_pos = (song_pos + 1) % sizeof(song_bee);
-			; SOURCE LINE # 105
+			; SOURCE LINE # 137
 	MOV  	A,song_pos
 	INC  	A
 	ANL  	A,#03FH
 	MOV  	song_pos,A
 ;             tune_index = song_bee[song_pos];
-			; SOURCE LINE # 106
+			; SOURCE LINE # 138
 	ADD  	A,#LOW (song_bee)
 	MOV  	R0,A
 	MOV  	A,@R0
 	MOV  	tune_index,A
 ;         }
-			; SOURCE LINE # 107
+			; SOURCE LINE # 139
 ?C0003:
 ;         switch(state) {
-			; SOURCE LINE # 108
+			; SOURCE LINE # 140
 	MOV  	A,state
 	DEC  	A
 	JZ   	?C0006
@@ -447,49 +477,49 @@ main:
 	ADD  	A,#04H
 	JNZ  	?C0001
 ;             case CLOCK_RUN:
-			; SOURCE LINE # 109
+			; SOURCE LINE # 141
 ?C0005:
 ;                 clock_run();
-			; SOURCE LINE # 110
+			; SOURCE LINE # 142
 	LCALL	clock_run
 ;                 break;
-			; SOURCE LINE # 111
+			; SOURCE LINE # 143
 	SJMP 	?C0001
 ;             case SET_CLOCK_HOUR:
-			; SOURCE LINE # 112
+			; SOURCE LINE # 144
 ?C0006:
 ;                 set_clock_hour();
-			; SOURCE LINE # 113
+			; SOURCE LINE # 145
 	LCALL	set_clock_hour
 ;                 break;
-			; SOURCE LINE # 114
+			; SOURCE LINE # 146
 	SJMP 	?C0001
 ;             case SET_CLOCK_MIN:
-			; SOURCE LINE # 115
+			; SOURCE LINE # 147
 ?C0007:
 ;                 set_clock_min();
-			; SOURCE LINE # 116
+			; SOURCE LINE # 148
 	LCALL	set_clock_min
 ;                 break;
-			; SOURCE LINE # 117
+			; SOURCE LINE # 149
 	SJMP 	?C0001
 ;             case SET_ALARM_HOUR:
-			; SOURCE LINE # 118
+			; SOURCE LINE # 150
 ?C0008:
 ;                 set_alarm_hour();
-			; SOURCE LINE # 119
+			; SOURCE LINE # 151
 	LCALL	set_alarm_hour
 ;                 break;
-			; SOURCE LINE # 120
+			; SOURCE LINE # 152
 	SJMP 	?C0001
 ;             case SET_ALARM_MIN:
-			; SOURCE LINE # 121
+			; SOURCE LINE # 153
 ?C0009:
 ;                 set_alarm_min();
-			; SOURCE LINE # 122
+			; SOURCE LINE # 154
 	LCALL	set_alarm_min
 ;                 break;
-			; SOURCE LINE # 123
+			; SOURCE LINE # 155
 	SJMP 	?C0001
 ; END OF main
 
@@ -497,34 +527,44 @@ main:
 ;     }
 ; }
 ; 
+; /* initialization */
 ; void init_8051(void) {
 
 	RSEG  ?PR?init_8051?MAIN
 init_8051:
-			; SOURCE LINE # 128
+			; SOURCE LINE # 161
+;     /* set timer0 and timer1 to 16-bit mode */
 ;     TMOD |= 0x11;
-			; SOURCE LINE # 129
+			; SOURCE LINE # 163
 	ORL  	TMOD,#011H
+; 
+;     /* number of count for 1ms: 0.001 * 921583 */
 ;     TH0 = 0xFC;
-			; SOURCE LINE # 130
+			; SOURCE LINE # 166
 	MOV  	TH0,#0FCH
 ;     TL0 = 0x66;
-			; SOURCE LINE # 131
+			; SOURCE LINE # 167
 	MOV  	TL0,#066H
+; 
+;     /* enable timer0 */
 ;     TR0 = 1;
-			; SOURCE LINE # 132
+			; SOURCE LINE # 170
 	SETB 	TR0
+; 
+;     /* enable all interrupt */
 ;     EA = 1;
-			; SOURCE LINE # 133
+			; SOURCE LINE # 173
 	SETB 	EA
+; 
+;     /* enable interrupt for timer0 */
 ;     ET0 = 1;
-			; SOURCE LINE # 134
+			; SOURCE LINE # 176
 	SETB 	ET0
 ;     LED0 = LED_ON;
-			; SOURCE LINE # 135
+			; SOURCE LINE # 177
 	CLR  	P1_0
 ; }
-			; SOURCE LINE # 136
+			; SOURCE LINE # 178
 	RET  	
 ; END OF init_8051
 
@@ -534,42 +574,47 @@ init_8051:
 	RSEG  ?PR?play_music?MAIN
 play_music:
 	USING	0
-			; SOURCE LINE # 138
+			; SOURCE LINE # 180
+;     /* reset to beginning of the song */
 ;     song_pos = 0;
-			; SOURCE LINE # 139
+			; SOURCE LINE # 182
 	CLR  	A
 	MOV  	song_pos,A
+; 
 ;     tune_index = song_bee[song_pos];
-			; SOURCE LINE # 140
+			; SOURCE LINE # 184
 	MOV  	A,#LOW (song_bee)
 	ADD  	A,song_pos
 	MOV  	R0,A
 	MOV  	A,@R0
 	MOV  	tune_index,A
 ;     TH1 = tune_high[tune_index];
-			; SOURCE LINE # 141
+			; SOURCE LINE # 185
 	ADD  	A,#LOW (tune_high)
 	MOV  	R0,A
 	MOV  	A,@R0
 	MOV  	TH1,A
 ;     TL1 = tune_low[tune_index];
-			; SOURCE LINE # 142
+			; SOURCE LINE # 186
 	MOV  	A,#LOW (tune_low)
 	ADD  	A,tune_index
 	MOV  	R0,A
 	MOV  	A,@R0
 	MOV  	TL1,A
+; 
+;     /* enable timer1 */
 ;     TR1 = 1;
-			; SOURCE LINE # 143
+			; SOURCE LINE # 189
 	SETB 	TR1
+;     /* enable interrupt for timer1 */
 ;     ET1 = 1;
-			; SOURCE LINE # 144
+			; SOURCE LINE # 191
 	SETB 	ET1
 ;     LED6 = LED_ON;
-			; SOURCE LINE # 145
+			; SOURCE LINE # 192
 	CLR  	P1_6
 ; }
-			; SOURCE LINE # 146
+			; SOURCE LINE # 193
 	RET  	
 ; END OF play_music
 
@@ -578,21 +623,23 @@ play_music:
 
 	RSEG  ?PR?stop_music?MAIN
 stop_music:
-			; SOURCE LINE # 148
+			; SOURCE LINE # 195
+; 
+;     /* disable timer1 and interrupt for timer1 */
 ;     TR1 = 0;
-			; SOURCE LINE # 149
+			; SOURCE LINE # 198
 	CLR  	TR1
 ;     ET1 = 0;
-			; SOURCE LINE # 150
+			; SOURCE LINE # 199
 	CLR  	ET1
 ;     SPK = SPK_OFF;
-			; SOURCE LINE # 151
+			; SOURCE LINE # 200
 	SETB 	P3_6
 ;     LED6 = LED_OFF;
-			; SOURCE LINE # 152
+			; SOURCE LINE # 201
 	SETB 	P1_6
 ; }
-			; SOURCE LINE # 153
+			; SOURCE LINE # 202
 	RET  	
 ; END OF stop_music
 
@@ -601,140 +648,140 @@ stop_music:
 
 	RSEG  ?PR?timer?MAIN
 timer:
-			; SOURCE LINE # 155
+			; SOURCE LINE # 204
 ;     if(flags.t1ms)
-			; SOURCE LINE # 156
+			; SOURCE LINE # 205
 	MOV  	A,flags+01H
 	JNB  	ACC.0,?C0014
 ;     {
-			; SOURCE LINE # 157
+			; SOURCE LINE # 206
 ;         flags.t1ms = 0;
-			; SOURCE LINE # 158
+			; SOURCE LINE # 207
 	ANL  	flags+01H,#0FEH
 ;         cnt1ms_for_5ms++;
-			; SOURCE LINE # 159
+			; SOURCE LINE # 208
 	INC  	cnt1ms_for_5ms
 ;     }
-			; SOURCE LINE # 160
+			; SOURCE LINE # 209
 ?C0014:
 ; 
 ;     if(cnt1ms_for_5ms >= 5) {
-			; SOURCE LINE # 162
+			; SOURCE LINE # 211
 	MOV  	A,cnt1ms_for_5ms
 	CLR  	C
 	SUBB 	A,#05H
 	JC   	?C0015
 ;         cnt1ms_for_5ms = 0;
-			; SOURCE LINE # 163
+			; SOURCE LINE # 212
 	CLR  	A
 	MOV  	cnt1ms_for_5ms,A
 ;         flags.t5ms = 1;
-			; SOURCE LINE # 164
+			; SOURCE LINE # 213
 	ORL  	flags+01H,#02H
 ;         cnt5ms_for_10ms++;
-			; SOURCE LINE # 165
+			; SOURCE LINE # 214
 	INC  	cnt5ms_for_10ms
 ;     }
-			; SOURCE LINE # 166
+			; SOURCE LINE # 215
 ?C0015:
 ; 
 ;     if(cnt5ms_for_10ms >= 2) {
-			; SOURCE LINE # 168
+			; SOURCE LINE # 217
 	MOV  	A,cnt5ms_for_10ms
 	CLR  	C
 	SUBB 	A,#02H
 	JC   	?C0016
 ;         cnt5ms_for_10ms = 0;
-			; SOURCE LINE # 169
+			; SOURCE LINE # 218
 	CLR  	A
 	MOV  	cnt5ms_for_10ms,A
 ;         flags.t10ms = 1;
-			; SOURCE LINE # 170
+			; SOURCE LINE # 219
 	ORL  	flags+01H,#04H
 ;         cnt10ms_for_20ms++;
-			; SOURCE LINE # 171
+			; SOURCE LINE # 220
 	INC  	cnt10ms_for_20ms
 ;     }
-			; SOURCE LINE # 172
+			; SOURCE LINE # 221
 ?C0016:
 ; 
 ;     if(cnt10ms_for_20ms >= 2) {
-			; SOURCE LINE # 174
+			; SOURCE LINE # 223
 	MOV  	A,cnt10ms_for_20ms
 	CLR  	C
 	SUBB 	A,#02H
 	JC   	?C0017
 ;         cnt10ms_for_20ms = 0;
-			; SOURCE LINE # 175
+			; SOURCE LINE # 224
 	CLR  	A
 	MOV  	cnt10ms_for_20ms,A
 ;         flags.t20ms = 1;
-			; SOURCE LINE # 176
+			; SOURCE LINE # 225
 	ORL  	flags+01H,#08H
 ;         cnt20ms_for_100ms++;
-			; SOURCE LINE # 177
+			; SOURCE LINE # 226
 	INC  	cnt20ms_for_100ms
 ;     }
-			; SOURCE LINE # 178
+			; SOURCE LINE # 227
 ?C0017:
 ; 
 ;     if(cnt20ms_for_100ms >= 5) {
-			; SOURCE LINE # 180
+			; SOURCE LINE # 229
 	MOV  	A,cnt20ms_for_100ms
 	CLR  	C
 	SUBB 	A,#05H
 	JC   	?C0018
 ;         cnt20ms_for_100ms = 0;
-			; SOURCE LINE # 181
+			; SOURCE LINE # 230
 	CLR  	A
 	MOV  	cnt20ms_for_100ms,A
 ;         flags.t100ms = 1;
-			; SOURCE LINE # 182
+			; SOURCE LINE # 231
 	ORL  	flags+01H,#010H
 ;         cnt100ms_for_200ms++;
-			; SOURCE LINE # 183
+			; SOURCE LINE # 232
 	INC  	cnt100ms_for_200ms
 ;     }
-			; SOURCE LINE # 184
+			; SOURCE LINE # 233
 ?C0018:
 ; 
 ;     if(cnt100ms_for_200ms >= 2) {
-			; SOURCE LINE # 186
+			; SOURCE LINE # 235
 	MOV  	A,cnt100ms_for_200ms
 	CLR  	C
 	SUBB 	A,#02H
 	JC   	?C0019
 ;         cnt100ms_for_200ms = 0;
-			; SOURCE LINE # 187
+			; SOURCE LINE # 236
 	CLR  	A
 	MOV  	cnt100ms_for_200ms,A
 ;         flags.t200ms = 1;
-			; SOURCE LINE # 188
+			; SOURCE LINE # 237
 	ORL  	flags+01H,#020H
 ;         cnt200ms_for_1s++;
-			; SOURCE LINE # 189
+			; SOURCE LINE # 238
 	INC  	cnt200ms_for_1s
 ;     }
-			; SOURCE LINE # 190
+			; SOURCE LINE # 239
 ?C0019:
 ; 
 ;     if(cnt200ms_for_1s >= 5) {
-			; SOURCE LINE # 192
+			; SOURCE LINE # 241
 	MOV  	A,cnt200ms_for_1s
 	CLR  	C
 	SUBB 	A,#05H
 	JC   	?C0021
 ;         cnt200ms_for_1s = 0;
-			; SOURCE LINE # 193
+			; SOURCE LINE # 242
 	CLR  	A
 	MOV  	cnt200ms_for_1s,A
 ;         flags.t1s = 1;
-			; SOURCE LINE # 194
+			; SOURCE LINE # 243
 	ORL  	flags+01H,#040H
 ;     }
-			; SOURCE LINE # 195
+			; SOURCE LINE # 244
 ; }
-			; SOURCE LINE # 196
+			; SOURCE LINE # 245
 ?C0021:
 	RET  	
 ; END OF timer
@@ -744,44 +791,44 @@ timer:
 
 	RSEG  ?PR?reset_timer?MAIN
 reset_timer:
-			; SOURCE LINE # 198
+			; SOURCE LINE # 247
 ;     flags.t1ms = 0;
-			; SOURCE LINE # 199
+			; SOURCE LINE # 248
 	ANL  	flags+01H,#0FEH
 ;     flags.t5ms = 0;
-			; SOURCE LINE # 200
+			; SOURCE LINE # 249
 	ANL  	flags+01H,#0FDH
 ;     flags.t10ms = 0;
-			; SOURCE LINE # 201
+			; SOURCE LINE # 250
 	ANL  	flags+01H,#0FBH
 ;     flags.t20ms = 0;
-			; SOURCE LINE # 202
+			; SOURCE LINE # 251
 	ANL  	flags+01H,#0F7H
 ;     flags.t100ms = 0;
-			; SOURCE LINE # 203
+			; SOURCE LINE # 252
 	ANL  	flags+01H,#0EFH
 ;     flags.t1s = 0;
-			; SOURCE LINE # 204
+			; SOURCE LINE # 253
 	ANL  	flags+01H,#0BFH
 ; 
 ;     cnt1ms_for_5ms = 0;
-			; SOURCE LINE # 206
+			; SOURCE LINE # 255
 	CLR  	A
 	MOV  	cnt1ms_for_5ms,A
 ;     cnt5ms_for_10ms = 0;
-			; SOURCE LINE # 207
+			; SOURCE LINE # 256
 	MOV  	cnt5ms_for_10ms,A
 ;     cnt10ms_for_20ms = 0;
-			; SOURCE LINE # 208
+			; SOURCE LINE # 257
 	MOV  	cnt10ms_for_20ms,A
 ;     cnt20ms_for_100ms = 0;
-			; SOURCE LINE # 209
+			; SOURCE LINE # 258
 	MOV  	cnt20ms_for_100ms,A
 ;     cnt200ms_for_1s = 0;
-			; SOURCE LINE # 210
+			; SOURCE LINE # 259
 	MOV  	cnt200ms_for_1s,A
 ; }
-			; SOURCE LINE # 211
+			; SOURCE LINE # 260
 	RET  	
 ; END OF reset_timer
 
@@ -794,71 +841,98 @@ L?0122:
 	ANL  	flags+01H,#0F7H
 check_button:
 	USING	0
-			; SOURCE LINE # 213
+			; SOURCE LINE # 262
+; 
+; 
+;     /* anti-ghost:
+;      * button will be scanned as click when
+;      * voltage sequence is high*6 -> low -> low
+;      * button is not click:
+;      * 0xFF
+;      * '__'__'__'__'__'__'__'__
+;      * 
+;      *
+;      *
+;      * 20ms after button click:
+;      * 0xFE
+;      * '__'__'__'__'__'__'__
+;      *                      |
+;      *                      |__
+;      *                      
+;      * 40ms after button click:
+;      * 0xFC
+;      * '__'__'__'__'__'__
+;      *                   |
+;      *                   |__'__
+;      */
+;     
+;     /* reset current voltage to high */
 ;     button_status[0] |= 0x01;
-			; SOURCE LINE # 214
+			; SOURCE LINE # 288
 	ORL  	button_status,#01H
 ;     button_status[1] |= 0x01;
-			; SOURCE LINE # 215
+			; SOURCE LINE # 289
 	ORL  	button_status+01H,#01H
 ;     button_status[2] |= 0x01;
-			; SOURCE LINE # 216
+			; SOURCE LINE # 290
 	ORL  	button_status+02H,#01H
 ;     button_status[3] |= 0x01;
-			; SOURCE LINE # 217
+			; SOURCE LINE # 291
 	ORL  	button_status+03H,#01H
 ; 
+;     /* if click, set current voltage to low */
 ;     if(B0 == 0 && B1 && B2 && B3) {
-			; SOURCE LINE # 219
+			; SOURCE LINE # 294
 	JB   	P2_4,?C0023
 	JNB  	P2_5,?C0023
 	JNB  	P2_6,?C0023
 	JNB  	P2_7,?C0023
 ;         button_status[0] &= 0xFE;
-			; SOURCE LINE # 220
+			; SOURCE LINE # 295
 	ANL  	button_status,#0FEH
 ;     }
-			; SOURCE LINE # 221
+			; SOURCE LINE # 296
 ?C0023:
 ;     if(B1 == 0 && B0 && B2 && B3) {
-			; SOURCE LINE # 222
+			; SOURCE LINE # 297
 	JB   	P2_5,?C0024
 	JNB  	P2_4,?C0024
 	JNB  	P2_6,?C0024
 	JNB  	P2_7,?C0024
 ;         button_status[1] &= 0xFE;
-			; SOURCE LINE # 223
+			; SOURCE LINE # 298
 	ANL  	button_status+01H,#0FEH
 ;     }
-			; SOURCE LINE # 224
+			; SOURCE LINE # 299
 ?C0024:
 ;     if(B2 == 0 && B0 && B1 && B3) {
-			; SOURCE LINE # 225
+			; SOURCE LINE # 300
 	JB   	P2_6,?C0025
 	JNB  	P2_4,?C0025
 	JNB  	P2_5,?C0025
 	JNB  	P2_7,?C0025
 ;         button_status[2] &= 0xFE;
-			; SOURCE LINE # 226
+			; SOURCE LINE # 301
 	ANL  	button_status+02H,#0FEH
 ;     }
-			; SOURCE LINE # 227
+			; SOURCE LINE # 302
 ?C0025:
 ;     if(B3 == 0 && B0 && B1 && B2) {
-			; SOURCE LINE # 228
+			; SOURCE LINE # 303
 	JB   	P2_7,?C0026
 	JNB  	P2_4,?C0026
 	JNB  	P2_5,?C0026
 	JNB  	P2_6,?C0026
 ;         button_status[3] &= 0xFE;
-			; SOURCE LINE # 229
+			; SOURCE LINE # 304
 	ANL  	button_status+03H,#0FEH
 ;     }
-			; SOURCE LINE # 230
+			; SOURCE LINE # 305
 ?C0026:
-; 
+;     
+;     /* whether status is 'high*6 -> low -> low' */
 ;     flags.b0_click = button_status[0] == 0xFC ? 1 : 0;
-			; SOURCE LINE # 232
+			; SOURCE LINE # 308
 	MOV  	A,button_status
 	CJNE 	A,#0FCH,?C0027
 	MOV  	R7,#01H
@@ -888,7 +962,7 @@ check_button:
 	ORL  	A,R7
 	MOV  	flags+01H,A
 ;     flags.b1_click = button_status[1] == 0xFC ? 1 : 0;
-			; SOURCE LINE # 233
+			; SOURCE LINE # 309
 	MOV  	A,button_status+01H
 	CJNE 	A,#0FCH,?C0029
 	MOV  	R7,#01H
@@ -906,7 +980,7 @@ check_button:
 	MOV  	A,flags+01H
 	MOV  	flags+01H,A
 ;     flags.b2_click = button_status[2] == 0xFC ? 1 : 0;
-			; SOURCE LINE # 234
+			; SOURCE LINE # 310
 	MOV  	A,button_status+02H
 	CJNE 	A,#0FCH,?C0031
 	MOV  	R7,#01H
@@ -925,7 +999,7 @@ check_button:
 	MOV  	A,flags+01H
 	MOV  	flags+01H,A
 ;     flags.b3_click = button_status[3] == 0xFC ? 1 : 0;
-			; SOURCE LINE # 235
+			; SOURCE LINE # 311
 	MOV  	A,button_status+03H
 	CJNE 	A,#0FCH,?C0033
 	MOV  	R7,#01H
@@ -945,29 +1019,29 @@ check_button:
 	MOV  	A,flags+01H
 	MOV  	flags+01H,A
 ; 
-; 
+;     /* shift for next time */
 ;     button_status[0] <<= 1;
-			; SOURCE LINE # 238
+			; SOURCE LINE # 314
 	MOV  	A,button_status
 	ADD  	A,ACC
 	MOV  	button_status,A
 ;     button_status[1] <<= 1;
-			; SOURCE LINE # 239
+			; SOURCE LINE # 315
 	MOV  	A,button_status+01H
 	ADD  	A,ACC
 	MOV  	button_status+01H,A
 ;     button_status[2] <<= 1;
-			; SOURCE LINE # 240
+			; SOURCE LINE # 316
 	MOV  	A,button_status+02H
 	ADD  	A,ACC
 	MOV  	button_status+02H,A
 ;     button_status[3] <<= 1;
-			; SOURCE LINE # 241
+			; SOURCE LINE # 317
 	MOV  	A,button_status+03H
 	ADD  	A,ACC
 	MOV  	button_status+03H,A
 ; }
-			; SOURCE LINE # 242
+			; SOURCE LINE # 318
 	RET  	
 ; END OF check_button
 
@@ -983,41 +1057,43 @@ L?0121:
 	MOV  	R7,clock_hour
 _display_seg:
 	USING	0
-			; SOURCE LINE # 244
+			; SOURCE LINE # 320
 ;---- Variable 'min?741' assigned to Register 'R5' ----
 ;---- Variable 'hour?740' assigned to Register 'R7' ----
 ;     volatile unsigned char temp_hour = hour, 
-			; SOURCE LINE # 245
+			; SOURCE LINE # 321
 	MOV  	temp_hour?742,R7
 ;                            temp_min = min;
-			; SOURCE LINE # 246
+			; SOURCE LINE # 322
 	MOV  	temp_min?743,R5
 ;     
+;     /* display next 7-segment display */
 ;     seg_number++;
-			; SOURCE LINE # 248
+			; SOURCE LINE # 325
 	INC  	seg_number
 ;     seg_number = seg_number % 4;
-			; SOURCE LINE # 249
+			; SOURCE LINE # 326
 	ANL  	seg_number,#03H
 ; 
+;     /* reset 7-segment display */
 ;     SEGMENT = 0xff;
-			; SOURCE LINE # 251
+			; SOURCE LINE # 329
 	MOV  	P0,#0FFH
 ;     SEG0 = 1;
-			; SOURCE LINE # 252
+			; SOURCE LINE # 330
 	SETB 	P2_0
 ;     SEG1 = 1;
-			; SOURCE LINE # 253
+			; SOURCE LINE # 331
 	SETB 	P2_1
 ;     SEG2 = 1;
-			; SOURCE LINE # 254
+			; SOURCE LINE # 332
 	SETB 	P2_2
 ;     SEG3 = 1;
-			; SOURCE LINE # 255
+			; SOURCE LINE # 333
 	SETB 	P2_3
 ; 
 ;     switch(seg_number) {
-			; SOURCE LINE # 257
+			; SOURCE LINE # 335
 	MOV  	A,seg_number
 	DEC  	A
 	JZ   	?C0038
@@ -1028,10 +1104,10 @@ _display_seg:
 	ADD  	A,#03H
 	JNZ  	?C0041
 ;         case 0:
-			; SOURCE LINE # 258
+			; SOURCE LINE # 336
 ?C0037:
 ;             SEGMENT = seg_arr[temp_hour / 10];
-			; SOURCE LINE # 259
+			; SOURCE LINE # 337
 	MOV  	A,temp_hour?742
 	MOV  	B,#0AH
 	DIV  	AB
@@ -1040,16 +1116,16 @@ _display_seg:
 	MOV  	A,@R0
 	MOV  	P0,A
 ;             SEG0 = 0;
-			; SOURCE LINE # 260
+			; SOURCE LINE # 338
 	CLR  	P2_0
 ;             break;
-			; SOURCE LINE # 261
+			; SOURCE LINE # 339
 	RET  	
 ;         case 1:
-			; SOURCE LINE # 262
+			; SOURCE LINE # 340
 ?C0038:
 ;             SEGMENT = seg_arr[temp_hour % 10];
-			; SOURCE LINE # 263
+			; SOURCE LINE # 341
 	MOV  	A,temp_hour?742
 	MOV  	B,#0AH
 	DIV  	AB
@@ -1059,16 +1135,16 @@ _display_seg:
 	MOV  	A,@R0
 	MOV  	P0,A
 ;             SEG1 = 0;
-			; SOURCE LINE # 264
+			; SOURCE LINE # 342
 	CLR  	P2_1
 ;             break;
-			; SOURCE LINE # 265
+			; SOURCE LINE # 343
 	RET  	
 ;         case 2:
-			; SOURCE LINE # 266
+			; SOURCE LINE # 344
 ?C0039:
 ;             SEGMENT = seg_arr[temp_min / 10];
-			; SOURCE LINE # 267
+			; SOURCE LINE # 345
 	MOV  	A,temp_min?743
 	MOV  	B,#0AH
 	DIV  	AB
@@ -1077,16 +1153,16 @@ _display_seg:
 	MOV  	A,@R0
 	MOV  	P0,A
 ;             SEG2 = 0;
-			; SOURCE LINE # 268
+			; SOURCE LINE # 346
 	CLR  	P2_2
 ;             break;
-			; SOURCE LINE # 269
+			; SOURCE LINE # 347
 	RET  	
 ;         case 3:
-			; SOURCE LINE # 270
+			; SOURCE LINE # 348
 ?C0040:
 ;             SEGMENT = seg_arr[temp_min % 10];
-			; SOURCE LINE # 271
+			; SOURCE LINE # 349
 	MOV  	A,temp_min?743
 	MOV  	B,#0AH
 	DIV  	AB
@@ -1096,33 +1172,33 @@ _display_seg:
 	MOV  	A,@R0
 	MOV  	P0,A
 ;             SEG3 = 0;
-			; SOURCE LINE # 272
+			; SOURCE LINE # 350
 	CLR  	P2_3
 ;             break;
-			; SOURCE LINE # 273
+			; SOURCE LINE # 351
 	RET  	
 ;         default:
-			; SOURCE LINE # 274
+			; SOURCE LINE # 352
 ?C0041:
 ;             SEGMENT = 0xff;
-			; SOURCE LINE # 275
+			; SOURCE LINE # 353
 	MOV  	P0,#0FFH
 ;             SEG0 = 1;
-			; SOURCE LINE # 276
+			; SOURCE LINE # 354
 	SETB 	P2_0
 ;             SEG1 = 1;
-			; SOURCE LINE # 277
+			; SOURCE LINE # 355
 	SETB 	P2_1
 ;             SEG2 = 1;
-			; SOURCE LINE # 278
+			; SOURCE LINE # 356
 	SETB 	P2_2
 ;             SEG3 = 1;
-			; SOURCE LINE # 279
+			; SOURCE LINE # 357
 	SETB 	P2_3
 ;     }
-			; SOURCE LINE # 280
+			; SOURCE LINE # 358
 ; }
-			; SOURCE LINE # 281
+			; SOURCE LINE # 359
 ?C0042:
 	RET  	
 ; END OF _display_seg
@@ -1135,40 +1211,40 @@ L?0123:
 	USING	0
 	ANL  	flags+01H,#0BFH
 clock_count_up:
-			; SOURCE LINE # 283
+			; SOURCE LINE # 361
 ;     clock_min++;
-			; SOURCE LINE # 284
+			; SOURCE LINE # 362
 	INC  	clock_min
 ;     if(clock_min >= 60) {
-			; SOURCE LINE # 285
+			; SOURCE LINE # 363
 	MOV  	A,clock_min
 	CLR  	C
 	SUBB 	A,#03CH
 	JC   	?C0043
 ;         clock_hour++;
-			; SOURCE LINE # 286
+			; SOURCE LINE # 364
 	INC  	clock_hour
 ;         clock_min = 0;
-			; SOURCE LINE # 287
+			; SOURCE LINE # 365
 	CLR  	A
 	MOV  	clock_min,A
 ;     }
-			; SOURCE LINE # 288
+			; SOURCE LINE # 366
 ?C0043:
 ;     if(clock_hour >= 24) {
-			; SOURCE LINE # 289
+			; SOURCE LINE # 367
 	MOV  	A,clock_hour
 	CLR  	C
 	SUBB 	A,#018H
 	JC   	?C0045
 ;         clock_hour = 0;
-			; SOURCE LINE # 290
+			; SOURCE LINE # 368
 	CLR  	A
 	MOV  	clock_hour,A
 ;     }
-			; SOURCE LINE # 291
+			; SOURCE LINE # 369
 ; }
-			; SOURCE LINE # 292
+			; SOURCE LINE # 370
 ?C0045:
 	RET  	
 ; END OF clock_count_up
@@ -1179,121 +1255,123 @@ clock_count_up:
 	RSEG  ?PR?clock_run?MAIN
 clock_run:
 	USING	0
-			; SOURCE LINE # 294
+			; SOURCE LINE # 372
 ;     if(flags.t5ms) {
-			; SOURCE LINE # 295
+			; SOURCE LINE # 373
 	MOV  	A,flags+01H
 	JNB  	ACC.1,?C0046
 ;         flags.t5ms = 0;
-			; SOURCE LINE # 296
+			; SOURCE LINE # 374
 ;         display_seg(clock_hour, clock_min);
-			; SOURCE LINE # 297
+			; SOURCE LINE # 375
 	LCALL	L?0120
 ;     }
-			; SOURCE LINE # 298
+			; SOURCE LINE # 376
 ?C0046:
 ; 
 ;     if(flags.t20ms) {
-			; SOURCE LINE # 300
+			; SOURCE LINE # 378
 	MOV  	A,flags+01H
 	JNB  	ACC.3,?C0047
 ;         flags.t20ms = 0;
-			; SOURCE LINE # 301
+			; SOURCE LINE # 379
 ;         check_button();
-			; SOURCE LINE # 302
+			; SOURCE LINE # 380
 	LCALL	L?0122
+;         /* CLOCK_RUN -> SET_CLOCK_HOUR */
 ;         if(flags.b0_click) {
-			; SOURCE LINE # 303
+			; SOURCE LINE # 382
 	MOV  	A,flags+01H
 	JNB  	ACC.7,?C0048
 ;             LED0 = LED_OFF;
-			; SOURCE LINE # 304
+			; SOURCE LINE # 383
 	SETB 	P1_0
 ;             LED1 = LED_ON;
-			; SOURCE LINE # 305
+			; SOURCE LINE # 384
 	CLR  	P1_1
 ;             state = SET_CLOCK_HOUR;
-			; SOURCE LINE # 306
+			; SOURCE LINE # 385
 	MOV  	state,#01H
 ;         }
-			; SOURCE LINE # 307
+			; SOURCE LINE # 386
 	SJMP 	?C0047
 ?C0048:
+;         /* CLOCK_RUN -> SET_ALARM_HOUR */
 ;         else if(flags.b1_click) {
-			; SOURCE LINE # 308
+			; SOURCE LINE # 388
 	MOV  	A,flags
 	JNB  	ACC.0,?C0050
 ;             LED0 = LED_OFF;
-			; SOURCE LINE # 309
+			; SOURCE LINE # 389
 	SETB 	P1_0
 ;             LED3 = LED_ON;
-			; SOURCE LINE # 310
+			; SOURCE LINE # 390
 	CLR  	P1_3
 ;             state = SET_ALARM_HOUR;
-			; SOURCE LINE # 311
+			; SOURCE LINE # 391
 	MOV  	state,#03H
 ;         }
-			; SOURCE LINE # 312
+			; SOURCE LINE # 392
 	SJMP 	?C0047
 ?C0050:
 ;         else if(flags.b2_click) {
-			; SOURCE LINE # 313
+			; SOURCE LINE # 393
 	MOV  	A,flags
 	JNB  	ACC.1,?C0052
 ;             stop_music();
-			; SOURCE LINE # 314
+			; SOURCE LINE # 394
 	LCALL	stop_music
 ;         }
-			; SOURCE LINE # 315
+			; SOURCE LINE # 395
 	SJMP 	?C0047
 ?C0052:
 ;         else if(flags.b3_click) {
-			; SOURCE LINE # 316
+			; SOURCE LINE # 396
 	MOV  	A,flags
 	JNB  	ACC.2,?C0047
 ;             LED7 = ~LED7;
-			; SOURCE LINE # 317
+			; SOURCE LINE # 397
 	CPL  	P1_7
 ;             alarm_enable = ~alarm_enable;
-			; SOURCE LINE # 318
+			; SOURCE LINE # 398
 	XRL  	alarm_enable,#0FFH
 ;         }
-			; SOURCE LINE # 319
+			; SOURCE LINE # 399
 ;     }
-			; SOURCE LINE # 320
+			; SOURCE LINE # 400
 ?C0047:
 ;     if(flags.t1s) {
-			; SOURCE LINE # 321
+			; SOURCE LINE # 401
 	MOV  	A,flags+01H
 	JNB  	ACC.6,?C0058
 ;         flags.t1s = 0;
-			; SOURCE LINE # 322
+			; SOURCE LINE # 402
 ;         clock_count_up();
-			; SOURCE LINE # 323
+			; SOURCE LINE # 403
 	LCALL	L?0123
 ;         if (alarm_enable) {
-			; SOURCE LINE # 324
+			; SOURCE LINE # 404
 	MOV  	A,alarm_enable
 	JZ   	?C0058
 ;             if (clock_hour == alarm_hour &&
-			; SOURCE LINE # 325
+			; SOURCE LINE # 405
 	MOV  	A,clock_hour
 	CJNE 	A,alarm_hour,?C0058
 	MOV  	A,clock_min
 	CJNE 	A,alarm_min,?C0058
 ;                 clock_min == alarm_min) {
-			; SOURCE LINE # 326
+			; SOURCE LINE # 406
 ;                 play_music();
-			; SOURCE LINE # 327
+			; SOURCE LINE # 407
 	LCALL	play_music
 ;             }
-			; SOURCE LINE # 328
+			; SOURCE LINE # 408
 ;         }
-			; SOURCE LINE # 329
+			; SOURCE LINE # 409
 ;     }
-			; SOURCE LINE # 330
+			; SOURCE LINE # 410
 ; }
-			; SOURCE LINE # 331
+			; SOURCE LINE # 411
 ?C0058:
 	RET  	
 ; END OF clock_run
@@ -1304,121 +1382,123 @@ clock_run:
 	RSEG  ?PR?set_clock_hour?MAIN
 set_clock_hour:
 	USING	0
-			; SOURCE LINE # 333
+			; SOURCE LINE # 413
 ;     if(flags.t5ms) {
-			; SOURCE LINE # 334
+			; SOURCE LINE # 414
 	MOV  	A,flags+01H
 	JNB  	ACC.1,?C0059
 ;         flags.t5ms = 0;
-			; SOURCE LINE # 335
+			; SOURCE LINE # 415
 ;         display_seg(clock_hour, clock_min);
-			; SOURCE LINE # 336
+			; SOURCE LINE # 416
 	LCALL	L?0120
 ;     }
-			; SOURCE LINE # 337
+			; SOURCE LINE # 417
 ?C0059:
 ; 
 ;     if(flags.t20ms) {
-			; SOURCE LINE # 339
+			; SOURCE LINE # 419
 	MOV  	A,flags+01H
 	JNB  	ACC.3,?C0072
 ;         flags.t20ms = 0;
-			; SOURCE LINE # 340
+			; SOURCE LINE # 420
 ;         check_button();
-			; SOURCE LINE # 341
+			; SOURCE LINE # 421
 	LCALL	L?0122
+;         /* SET_CLOCK_HOUR -> CLOCK_RUN */
 ;         if(flags.b0_click) {
-			; SOURCE LINE # 342
+			; SOURCE LINE # 423
 	MOV  	A,flags+01H
 	JNB  	ACC.7,?C0061
 ;             LED1 = LED_OFF;
-			; SOURCE LINE # 343
+			; SOURCE LINE # 424
 	SETB 	P1_1
 ;             LED0 = LED_ON;
-			; SOURCE LINE # 344
+			; SOURCE LINE # 425
 	CLR  	P1_0
 ;             state = CLOCK_RUN;
-			; SOURCE LINE # 345
+			; SOURCE LINE # 426
 	CLR  	A
 	MOV  	state,A
 ;             reset_timer();
-			; SOURCE LINE # 346
+			; SOURCE LINE # 427
 	LJMP 	reset_timer
 ;         }
-			; SOURCE LINE # 347
+			; SOURCE LINE # 428
 ?C0061:
+;         /* SET_CLOCK_HOUR -> SET_CLOCK_MIN*/
 ;         else if(flags.b1_click) {
-			; SOURCE LINE # 348
+			; SOURCE LINE # 430
 	MOV  	A,flags
 	JNB  	ACC.0,?C0063
 ;             LED1 = LED_OFF;
-			; SOURCE LINE # 349
+			; SOURCE LINE # 431
 	SETB 	P1_1
 ;             LED2 = LED_ON;
-			; SOURCE LINE # 350
+			; SOURCE LINE # 432
 	CLR  	P1_2
 ;             state = SET_CLOCK_MIN;
-			; SOURCE LINE # 351
+			; SOURCE LINE # 433
 	MOV  	state,#02H
 ;         }
-			; SOURCE LINE # 352
+			; SOURCE LINE # 434
 	RET  	
 ?C0063:
 ;         else if(flags.b2_click) {
-			; SOURCE LINE # 353
+			; SOURCE LINE # 435
 	MOV  	A,flags
 	JNB  	ACC.1,?C0065
 ;             if (clock_hour <= 0) {
-			; SOURCE LINE # 354
+			; SOURCE LINE # 436
 	MOV  	A,clock_hour
 	SETB 	C
 	SUBB 	A,#00H
 	JNC  	?C0066
 ;                 clock_hour = 23;
-			; SOURCE LINE # 355
+			; SOURCE LINE # 437
 	MOV  	clock_hour,#017H
 ;             } else{
-			; SOURCE LINE # 356
+			; SOURCE LINE # 438
 	RET  	
 ?C0066:
 ;                 clock_hour--;
-			; SOURCE LINE # 357
+			; SOURCE LINE # 439
 	DEC  	clock_hour
 ;             }
-			; SOURCE LINE # 358
+			; SOURCE LINE # 440
 ;         }
-			; SOURCE LINE # 359
+			; SOURCE LINE # 441
 	RET  	
 ?C0065:
 ;         else if(flags.b3_click) {
-			; SOURCE LINE # 360
+			; SOURCE LINE # 442
 	MOV  	A,flags
 	JNB  	ACC.2,?C0072
 ;             if (clock_hour >= 23) {
-			; SOURCE LINE # 361
+			; SOURCE LINE # 443
 	MOV  	A,clock_hour
 	CLR  	C
 	SUBB 	A,#017H
 	JC   	?C0070
 ;                 clock_hour = 0;
-			; SOURCE LINE # 362
+			; SOURCE LINE # 444
 	CLR  	A
 	MOV  	clock_hour,A
 ;             } else {
-			; SOURCE LINE # 363
+			; SOURCE LINE # 445
 	RET  	
 ?C0070:
 ;                 clock_hour++;
-			; SOURCE LINE # 364
+			; SOURCE LINE # 446
 	INC  	clock_hour
 ;             }
-			; SOURCE LINE # 365
+			; SOURCE LINE # 447
 ;         }
-			; SOURCE LINE # 366
+			; SOURCE LINE # 448
 ;     }
-			; SOURCE LINE # 367
+			; SOURCE LINE # 449
 ; }
-			; SOURCE LINE # 368
+			; SOURCE LINE # 450
 ?C0072:
 	RET  	
 ; END OF set_clock_hour
@@ -1429,122 +1509,124 @@ set_clock_hour:
 	RSEG  ?PR?set_clock_min?MAIN
 set_clock_min:
 	USING	0
-			; SOURCE LINE # 370
+			; SOURCE LINE # 452
 ;     if(flags.t5ms) {
-			; SOURCE LINE # 371
+			; SOURCE LINE # 453
 	MOV  	A,flags+01H
 	JNB  	ACC.1,?C0073
 ;         flags.t5ms = 0;
-			; SOURCE LINE # 372
+			; SOURCE LINE # 454
 ;         display_seg(clock_hour, clock_min);
-			; SOURCE LINE # 373
+			; SOURCE LINE # 455
 	LCALL	L?0121
 ;     }
-			; SOURCE LINE # 374
+			; SOURCE LINE # 456
 ?C0073:
 ; 
 ;     if(flags.t20ms) {
-			; SOURCE LINE # 376
+			; SOURCE LINE # 458
 	MOV  	A,flags+01H
 	JNB  	ACC.3,?C0086
 ;         flags.t20ms = 0;
-			; SOURCE LINE # 377
+			; SOURCE LINE # 459
 	ANL  	flags+01H,#0F7H
 ;         check_button();
-			; SOURCE LINE # 378
+			; SOURCE LINE # 460
 	LCALL	check_button
+;         /* SET_CLOCK_MIN -> CLOCK_RUN */
 ;         if(flags.b0_click) {
-			; SOURCE LINE # 379
+			; SOURCE LINE # 462
 	MOV  	A,flags+01H
 	JNB  	ACC.7,?C0075
 ;             LED2 = LED_OFF;
-			; SOURCE LINE # 380
+			; SOURCE LINE # 463
 	SETB 	P1_2
 ;             LED0 = LED_ON;
-			; SOURCE LINE # 381
+			; SOURCE LINE # 464
 	CLR  	P1_0
 ;             state = CLOCK_RUN;
-			; SOURCE LINE # 382
+			; SOURCE LINE # 465
 	CLR  	A
 	MOV  	state,A
 ;             reset_timer();
-			; SOURCE LINE # 383
+			; SOURCE LINE # 466
 	LJMP 	reset_timer
 ;         }
-			; SOURCE LINE # 384
+			; SOURCE LINE # 467
 ?C0075:
+;         /* SET_CLOCK_MIN -> SET_CLOCK_HOUR */
 ;         else if(flags.b1_click) {
-			; SOURCE LINE # 385
+			; SOURCE LINE # 469
 	MOV  	A,flags
 	JNB  	ACC.0,?C0077
 ;             LED2 = LED_OFF;
-			; SOURCE LINE # 386
+			; SOURCE LINE # 470
 	SETB 	P1_2
 ;             LED1 = LED_ON;
-			; SOURCE LINE # 387
+			; SOURCE LINE # 471
 	CLR  	P1_1
 ;             state = SET_CLOCK_HOUR;
-			; SOURCE LINE # 388
+			; SOURCE LINE # 472
 	MOV  	state,#01H
 ;         }
-			; SOURCE LINE # 389
+			; SOURCE LINE # 473
 	RET  	
 ?C0077:
 ;         else if(flags.b2_click) {
-			; SOURCE LINE # 390
+			; SOURCE LINE # 474
 	MOV  	A,flags
 	JNB  	ACC.1,?C0079
 ;             if (clock_min <= 0) {
-			; SOURCE LINE # 391
+			; SOURCE LINE # 475
 	MOV  	A,clock_min
 	SETB 	C
 	SUBB 	A,#00H
 	JNC  	?C0080
 ;                 clock_min = 59;
-			; SOURCE LINE # 392
+			; SOURCE LINE # 476
 	MOV  	clock_min,#03BH
 ;             } else {
-			; SOURCE LINE # 393
+			; SOURCE LINE # 477
 	RET  	
 ?C0080:
 ;                 clock_min--;
-			; SOURCE LINE # 394
+			; SOURCE LINE # 478
 	DEC  	clock_min
 ;             }
-			; SOURCE LINE # 395
+			; SOURCE LINE # 479
 ;         }
-			; SOURCE LINE # 396
+			; SOURCE LINE # 480
 	RET  	
 ?C0079:
 ;         else if(flags.b3_click) {
-			; SOURCE LINE # 397
+			; SOURCE LINE # 481
 	MOV  	A,flags
 	JNB  	ACC.2,?C0086
 ;             if (clock_min >= 59) {
-			; SOURCE LINE # 398
+			; SOURCE LINE # 482
 	MOV  	A,clock_min
 	CLR  	C
 	SUBB 	A,#03BH
 	JC   	?C0084
 ;                 clock_min = 0;
-			; SOURCE LINE # 399
+			; SOURCE LINE # 483
 	CLR  	A
 	MOV  	clock_min,A
 ;             } else {
-			; SOURCE LINE # 400
+			; SOURCE LINE # 484
 	RET  	
 ?C0084:
 ;                 clock_min++;
-			; SOURCE LINE # 401
+			; SOURCE LINE # 485
 	INC  	clock_min
 ;             }
-			; SOURCE LINE # 402
+			; SOURCE LINE # 486
 ;         }
-			; SOURCE LINE # 403
+			; SOURCE LINE # 487
 ;     }
-			; SOURCE LINE # 404
+			; SOURCE LINE # 488
 ; }
-			; SOURCE LINE # 405
+			; SOURCE LINE # 489
 ?C0086:
 	RET  	
 ; END OF set_clock_min
@@ -1555,138 +1637,141 @@ set_clock_min:
 	RSEG  ?PR?set_alarm_hour?MAIN
 set_alarm_hour:
 	USING	0
-			; SOURCE LINE # 407
+			; SOURCE LINE # 491
 ;     if(flags.t5ms) {
-			; SOURCE LINE # 408
+			; SOURCE LINE # 492
 	MOV  	A,flags+01H
 	JNB  	ACC.1,?C0087
 ;         flags.t5ms = 0;
-			; SOURCE LINE # 409
+			; SOURCE LINE # 493
 	ANL  	flags+01H,#0FDH
 ;         display_seg(alarm_hour, alarm_min);
-			; SOURCE LINE # 410
+			; SOURCE LINE # 494
 	MOV  	R5,alarm_min
 	MOV  	R7,alarm_hour
 	LCALL	_display_seg
 ;     }
-			; SOURCE LINE # 411
+			; SOURCE LINE # 495
 ?C0087:
 ; 
 ;     if(flags.t20ms) {
-			; SOURCE LINE # 413
+			; SOURCE LINE # 497
 	MOV  	A,flags+01H
 	JNB  	ACC.3,?C0088
 ;         flags.t20ms = 0;
-			; SOURCE LINE # 414
+			; SOURCE LINE # 498
 	ANL  	flags+01H,#0F7H
 ;         check_button();
-			; SOURCE LINE # 415
+			; SOURCE LINE # 499
 	LCALL	check_button
+;         /* SET_ALARM_HOUR -> CLOCK_RUN */
 ;         if(flags.b0_click) {
-			; SOURCE LINE # 416
+			; SOURCE LINE # 501
 	MOV  	A,flags+01H
 	JNB  	ACC.7,?C0089
 ;             LED3 = LED_OFF;
-			; SOURCE LINE # 417
+			; SOURCE LINE # 502
 	SETB 	P1_3
 ;             LED0 = LED_ON;
-			; SOURCE LINE # 418
+			; SOURCE LINE # 503
 	CLR  	P1_0
 ;             state = CLOCK_RUN;
-			; SOURCE LINE # 419
+			; SOURCE LINE # 504
 	CLR  	A
 	MOV  	state,A
 ;             reset_timer();
-			; SOURCE LINE # 420
+			; SOURCE LINE # 505
 	LCALL	reset_timer
 ;         }
-			; SOURCE LINE # 421
+			; SOURCE LINE # 506
 	SJMP 	?C0088
 ?C0089:
+;         /* SET_ALARM_HOUR -> SET_ALARM_MIN */
 ;         else if(flags.b1_click) {
-			; SOURCE LINE # 422
+			; SOURCE LINE # 508
 	MOV  	A,flags
 	JNB  	ACC.0,?C0091
 ;             LED3 = LED_OFF;
-			; SOURCE LINE # 423
+			; SOURCE LINE # 509
 	SETB 	P1_3
 ;             LED4 = LED_ON;
-			; SOURCE LINE # 424
+			; SOURCE LINE # 510
 	CLR  	P1_4
 ;             state = SET_ALARM_MIN;
-			; SOURCE LINE # 425
+			; SOURCE LINE # 511
 	MOV  	state,#04H
 ;         }
-			; SOURCE LINE # 426
+			; SOURCE LINE # 512
 	SJMP 	?C0088
 ?C0091:
 ;         else if(flags.b2_click) {
-			; SOURCE LINE # 427
+			; SOURCE LINE # 513
 	MOV  	A,flags
 	JNB  	ACC.1,?C0093
 ;             if (alarm_hour <= 0) {
-			; SOURCE LINE # 428
+			; SOURCE LINE # 514
 	MOV  	A,alarm_hour
 	SETB 	C
 	SUBB 	A,#00H
 	JNC  	?C0094
 ;                 alarm_hour = 23;
-			; SOURCE LINE # 429
+			; SOURCE LINE # 515
 	MOV  	alarm_hour,#017H
 ;             } else{
-			; SOURCE LINE # 430
+			; SOURCE LINE # 516
 	SJMP 	?C0088
 ?C0094:
 ;                 alarm_hour--;
-			; SOURCE LINE # 431
+			; SOURCE LINE # 517
 	DEC  	alarm_hour
 ;             }
-			; SOURCE LINE # 432
+			; SOURCE LINE # 518
 ;         }
-			; SOURCE LINE # 433
+			; SOURCE LINE # 519
 	SJMP 	?C0088
 ?C0093:
 ;         else if(flags.b3_click) {
-			; SOURCE LINE # 434
+			; SOURCE LINE # 520
 	MOV  	A,flags
 	JNB  	ACC.2,?C0088
 ;             if (alarm_hour >= 23) {
-			; SOURCE LINE # 435
+			; SOURCE LINE # 521
 	MOV  	A,alarm_hour
 	CLR  	C
 	SUBB 	A,#017H
 	JC   	?C0098
 ;                 alarm_hour = 0;
-			; SOURCE LINE # 436
+			; SOURCE LINE # 522
 	CLR  	A
 	MOV  	alarm_hour,A
 ;             } else {
-			; SOURCE LINE # 437
+			; SOURCE LINE # 523
 	SJMP 	?C0088
 ?C0098:
 ;                 alarm_hour++;
-			; SOURCE LINE # 438
+			; SOURCE LINE # 524
 	INC  	alarm_hour
 ;             }
-			; SOURCE LINE # 439
+			; SOURCE LINE # 525
 ;         }
-			; SOURCE LINE # 440
+			; SOURCE LINE # 526
 ;     }
-			; SOURCE LINE # 441
+			; SOURCE LINE # 527
 ?C0088:
+;     /* clock keep going when setting alarm */
 ;     if(flags.t1s) {
-			; SOURCE LINE # 442
+			; SOURCE LINE # 529
 	MOV  	A,flags+01H
 	JNB  	ACC.6,?C0101
 ;         flags.t1s = 0;
-			; SOURCE LINE # 443
+			; SOURCE LINE # 530
 ;         clock_count_up();
-			; SOURCE LINE # 444
+			; SOURCE LINE # 531
 	LCALL	L?0123
 ;     }
-			; SOURCE LINE # 445
+			; SOURCE LINE # 532
 ; }
-			; SOURCE LINE # 446
+			; SOURCE LINE # 533
 ?C0101:
 	RET  	
 ; END OF set_alarm_hour
@@ -1697,139 +1782,142 @@ set_alarm_hour:
 	RSEG  ?PR?set_alarm_min?MAIN
 set_alarm_min:
 	USING	0
-			; SOURCE LINE # 448
+			; SOURCE LINE # 535
 ;     if(flags.t5ms) {
-			; SOURCE LINE # 449
+			; SOURCE LINE # 536
 	MOV  	A,flags+01H
 	JNB  	ACC.1,?C0102
 ;         flags.t5ms = 0;
-			; SOURCE LINE # 450
+			; SOURCE LINE # 537
 	ANL  	flags+01H,#0FDH
 ;         display_seg(alarm_hour, alarm_min);
-			; SOURCE LINE # 451
+			; SOURCE LINE # 538
 	MOV  	R5,alarm_min
 	MOV  	R7,alarm_hour
 	LCALL	_display_seg
 ;     }
-			; SOURCE LINE # 452
+			; SOURCE LINE # 539
 ?C0102:
 ; 
 ;     if(flags.t20ms) {
-			; SOURCE LINE # 454
+			; SOURCE LINE # 541
 	MOV  	A,flags+01H
 	JNB  	ACC.3,?C0103
 ;         flags.t20ms = 0;
-			; SOURCE LINE # 455
+			; SOURCE LINE # 542
 	ANL  	flags+01H,#0F7H
 ;         check_button();
-			; SOURCE LINE # 456
+			; SOURCE LINE # 543
 	LCALL	check_button
+;         /* SET_ALARM_MIN -> CLOCK_RUN */
 ;         if(flags.b0_click) {
-			; SOURCE LINE # 457
+			; SOURCE LINE # 545
 	MOV  	A,flags+01H
 	JNB  	ACC.7,?C0104
 ;             LED4 = LED_OFF;
-			; SOURCE LINE # 458
+			; SOURCE LINE # 546
 	SETB 	P1_4
 ;             LED0 = LED_ON;
-			; SOURCE LINE # 459
+			; SOURCE LINE # 547
 	CLR  	P1_0
 ;             state = CLOCK_RUN;
-			; SOURCE LINE # 460
+			; SOURCE LINE # 548
 	CLR  	A
 	MOV  	state,A
 ;             reset_timer();
-			; SOURCE LINE # 461
+			; SOURCE LINE # 549
 	LCALL	reset_timer
 ;         }
-			; SOURCE LINE # 462
+			; SOURCE LINE # 550
 	SJMP 	?C0103
 ?C0104:
+;         /* SET_ALARM_MIN -> SET_ALARM_HOUR */
 ;         else if(flags.b1_click) {
-			; SOURCE LINE # 463
+			; SOURCE LINE # 552
 	MOV  	A,flags
 	JNB  	ACC.0,?C0106
 ;             LED4 = LED_OFF;
-			; SOURCE LINE # 464
+			; SOURCE LINE # 553
 	SETB 	P1_4
 ;             LED3 = LED_ON;
-			; SOURCE LINE # 465
+			; SOURCE LINE # 554
 	CLR  	P1_3
 ;             state = SET_ALARM_HOUR;
-			; SOURCE LINE # 466
+			; SOURCE LINE # 555
 	MOV  	state,#03H
 ;         }
-			; SOURCE LINE # 467
+			; SOURCE LINE # 556
 	SJMP 	?C0103
 ?C0106:
 ;         else if(flags.b2_click) {
-			; SOURCE LINE # 468
+			; SOURCE LINE # 557
 	MOV  	A,flags
 	JNB  	ACC.1,?C0108
 ;             if (alarm_min <= 0) {
-			; SOURCE LINE # 469
+			; SOURCE LINE # 558
 	MOV  	A,alarm_min
 	SETB 	C
 	SUBB 	A,#00H
 	JNC  	?C0109
 ;                 alarm_min = 59;
-			; SOURCE LINE # 470
+			; SOURCE LINE # 559
 	MOV  	alarm_min,#03BH
 ;             } else {
-			; SOURCE LINE # 471
+			; SOURCE LINE # 560
 	SJMP 	?C0103
 ?C0109:
 ;                 alarm_min--;
-			; SOURCE LINE # 472
+			; SOURCE LINE # 561
 	DEC  	alarm_min
 ;             }
-			; SOURCE LINE # 473
+			; SOURCE LINE # 562
 ;         }
-			; SOURCE LINE # 474
+			; SOURCE LINE # 563
 	SJMP 	?C0103
 ?C0108:
 ;         else if(flags.b3_click) {
-			; SOURCE LINE # 475
+			; SOURCE LINE # 564
 	MOV  	A,flags
 	JNB  	ACC.2,?C0103
 ;             if (alarm_min >= 59) {
-			; SOURCE LINE # 476
+			; SOURCE LINE # 565
 	MOV  	A,alarm_min
 	CLR  	C
 	SUBB 	A,#03BH
 	JC   	?C0113
 ;                 alarm_min = 0;
-			; SOURCE LINE # 477
+			; SOURCE LINE # 566
 	CLR  	A
 	MOV  	alarm_min,A
 ;             } else {
-			; SOURCE LINE # 478
+			; SOURCE LINE # 567
 	SJMP 	?C0103
 ?C0113:
 ;                 alarm_min++;
-			; SOURCE LINE # 479
+			; SOURCE LINE # 568
 	INC  	alarm_min
 ;             }
-			; SOURCE LINE # 480
+			; SOURCE LINE # 569
 ;         }
-			; SOURCE LINE # 481
+			; SOURCE LINE # 570
 ;     }
-			; SOURCE LINE # 482
+			; SOURCE LINE # 571
 ?C0103:
+;     /* clock keep going when setting alarm */
 ;     if(flags.t1s) {
-			; SOURCE LINE # 483
+			; SOURCE LINE # 573
 	MOV  	A,flags+01H
 	JNB  	ACC.6,?C0116
 ;         flags.t1s = 0;
-			; SOURCE LINE # 484
+			; SOURCE LINE # 574
 	ANL  	flags+01H,#0BFH
 ;         clock_count_up();
-			; SOURCE LINE # 485
+			; SOURCE LINE # 575
 	LCALL	clock_count_up
 ;     }
-			; SOURCE LINE # 486
+			; SOURCE LINE # 576
 ; }
-			; SOURCE LINE # 487
+			; SOURCE LINE # 577
 ?C0116:
 	RET  	
 ; END OF set_alarm_min
@@ -1843,21 +1931,22 @@ CSEG	AT	0000BH
 	RSEG  ?PR?timer0?MAIN
 	USING	0
 timer0:
-			; SOURCE LINE # 489
+			; SOURCE LINE # 579
+;     /* reference to init_8051 */
 ;     TH0 = 0xFC;
-			; SOURCE LINE # 490
+			; SOURCE LINE # 581
 	MOV  	TH0,#0FCH
 ;     TL0 = 0x66;
-			; SOURCE LINE # 491
+			; SOURCE LINE # 582
 	MOV  	TL0,#066H
 ;     TF0 = 0;
-			; SOURCE LINE # 492
+			; SOURCE LINE # 583
 	CLR  	TF0
 ;     flags.t1ms = 1;
-			; SOURCE LINE # 493
+			; SOURCE LINE # 584
 	ORL  	flags+01H,#01H
 ; }
-			; SOURCE LINE # 494
+			; SOURCE LINE # 585
 	RETI 	
 ; END OF timer0
 
@@ -1875,29 +1964,29 @@ timer1:
 	MOV  	PSW,#00H
 	PUSH 	AR0
 	USING	0
-			; SOURCE LINE # 496
+			; SOURCE LINE # 587
 ;     TH1 = tune_high[tune_index];
-			; SOURCE LINE # 497
+			; SOURCE LINE # 588
 	MOV  	A,#LOW (tune_high)
 	ADD  	A,tune_index
 	MOV  	R0,A
 	MOV  	A,@R0
 	MOV  	TH1,A
 ;     TL1 = tune_low[tune_index];
-			; SOURCE LINE # 498
+			; SOURCE LINE # 589
 	MOV  	A,#LOW (tune_low)
 	ADD  	A,tune_index
 	MOV  	R0,A
 	MOV  	A,@R0
 	MOV  	TL1,A
 ;     TF1 = 0;
-			; SOURCE LINE # 499
+			; SOURCE LINE # 590
 	CLR  	TF1
 ;     SPK = ~SPK;
-			; SOURCE LINE # 500
+			; SOURCE LINE # 591
 	CPL  	P3_6
 ; }
-			; SOURCE LINE # 501
+			; SOURCE LINE # 592
 	POP  	AR0
 	POP  	PSW
 	POP  	ACC

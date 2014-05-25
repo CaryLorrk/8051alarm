@@ -1,0 +1,733 @@
+C51 COMPILER V9.02   MAIN                                                                  05/25/2014 19:40:59 PAGE 1   
+
+
+C51 COMPILER V9.02, COMPILATION OF MODULE MAIN
+NO OBJECT MODULE REQUESTED
+COMPILER INVOKED BY: C:\Keil\C51\BIN\C51.EXE main.c BROWSE CODE SYMBOLS SRC DEBUG OBJECTEXTEND
+
+line level    source
+
+   1          #include<AT89x51.h>
+   2          
+   3          
+   4          #define LED0    P1_0
+   5          #define LED1    P1_1
+   6          #define LED2    P1_2
+   7          #define LED3    P1_3
+   8          #define LED4    P1_4
+   9          #define LED5    P1_5
+  10          #define LED6    P1_6
+  11          #define LED7    P1_7
+  12          #define LED_ON  0
+  13          #define LED_OFF 1
+  14          
+  15          #define SEGMENT P0
+  16          #define SEG0    P2_0
+  17          #define SEG1    P2_1
+  18          #define SEG2    P2_2
+  19          #define SEG3    P2_3
+  20          
+  21          #define B0      P2_4
+  22          #define B1      P2_5
+  23          #define B2      P2_6
+  24          #define B3      P2_7
+  25          
+  26          #define SPK     P3_6
+  27          #define SPK_ON  0
+  28          #define SPK_OFF 1
+  29          
+  30          
+  31          
+  32          struct Flags {
+  33              /* flags for elapsed time */
+  34              unsigned t1ms:1;
+  35              unsigned t5ms:1;
+  36              unsigned t10ms:1;
+  37              unsigned t20ms:1;
+  38              unsigned t100ms:1;
+  39              unsigned t200ms:1;
+  40              unsigned t1s:1;
+  41          
+  42              /* flags for button click */
+  43              unsigned b0_click:1;
+  44              unsigned b1_click:1;
+  45              unsigned b2_click:1;
+  46              unsigned b3_click:1;
+  47          
+  48          } flags;
+  49          
+  50          /* finite state masine */
+  51          enum State {
+  52              CLOCK_RUN,
+  53              SET_CLOCK_HOUR,
+  54              SET_CLOCK_MIN,
+  55              SET_ALARM_HOUR,
+C51 COMPILER V9.02   MAIN                                                                  05/25/2014 19:40:59 PAGE 2   
+
+  56              SET_ALARM_MIN
+  57          } state;
+  58          
+  59          /* counter for time carrying */
+  60          unsigned char cnt1ms_for_5ms,
+  61                        cnt5ms_for_10ms,
+  62                        cnt10ms_for_20ms,
+  63                        cnt20ms_for_100ms,
+  64                        cnt100ms_for_200ms,
+  65                        cnt200ms_for_1s;
+  66          
+  67          
+  68          /* 0-9 for 7-segment display*/
+  69          unsigned char seg_arr[10] = {0xc0,0xf9,0xa4,0Xb0,0x99,0x92,0x82,0xd8,0x80,0X90};
+  70          
+  71          /* which 7-segment we want to display */
+  72          unsigned char seg_number;
+  73          
+  74          /* (TH, TL) = 65535 - 1 / F / 2 * 921583
+  75           * 1 / F: T
+  76           * T / 2: half for high voltage and half for low voltage
+  77           * ___     ___     ___     ___     
+  78           *    |   |   |   |   |   |   |   
+  79           *    |___|   |___|   |___|   |___
+  80           *    '   '       '       '
+  81           *     T/2            T
+  82           *     
+  83           * 921583: machine cycle per second (11.059 MHz / 12)
+  84           * T / 2 * 921583: number of count to flip voltage
+  85           *
+  86           * F: frequency
+  87           * T: period
+  88           */
+  89          unsigned char tune_high[8] = { 0, 0xFE, 0xFE, 0xFE, 0xFE, 0xFE, 0xFE, 0xFF};
+  90          unsigned char tune_low[8] = { 0, 0x46, 0x77, 0xA1, 0xB5, 0xD9, 0xF3, 0x16};
+  91          unsigned char song_bee[] = {
+  92              5, 3, 3, 3, 4, 2, 2, 2, 1, 2, 3, 4, 5, 5, 5, 5,
+  93              5, 3, 3, 3, 4, 2, 2, 2, 1, 3, 5, 5, 3, 3 ,3, 3,
+  94              2, 2, 2, 2, 2, 3, 4, 4, 3, 3, 3, 3, 3, 4, 5, 5,
+  95              5, 3, 3, 3, 4, 2, 2, 2, 1, 3, 5, 5, 1, 1, 1, 1};
+  96          
+  97          /* where we are in the song */
+  98          unsigned char song_pos;
+  99          
+ 100          /* what current tune is */
+ 101          unsigned char tune_index;
+ 102          unsigned char  clock_hour, clock_min;
+ 103          unsigned char  alarm_hour, alarm_min;
+ 104          unsigned char alarm_enable;
+ 105          
+ 106          /* least resent 8 status for button */
+ 107          unsigned char button_status[4];
+ 108          
+ 109          
+ 110          void init_8051(void);
+ 111          void timer(void);
+ 112          void reset_timer(void);
+ 113          void check_button(void);
+ 114          void display_seg(unsigned char hour, unsigned char min);
+ 115          void check_state(void);
+ 116          void clock_count_up(void);
+ 117          void play_music(void);
+C51 COMPILER V9.02   MAIN                                                                  05/25/2014 19:40:59 PAGE 3   
+
+ 118          
+ 119          void clock_run();
+ 120          void set_clock_hour();
+ 121          void set_clock_min();
+ 122          void set_alarm_hour();
+ 123          void set_alarm_min();
+ 124          
+ 125          void main(void) {
+ 126   1          init_8051();
+ 127   1          while(1) {
+ 128   2              timer();
+ 129   2              /* if alarm is buzzing (LED6 is on),
+ 130   2               * play the next tune in the song per 200ms
+ 131   2               */
+ 132   2              if (flags.t200ms && LED6 == LED_ON) {
+ 133   3                  flags.t200ms = 0;
+ 134   3                  /* find the next tune.
+ 135   3                   * go back to beginning at end.
+ 136   3                   */
+ 137   3                  song_pos = (song_pos + 1) % sizeof(song_bee);
+ 138   3                  tune_index = song_bee[song_pos];
+ 139   3              }
+ 140   2              switch(state) {
+ 141   3                  case CLOCK_RUN:
+ 142   3                      clock_run();
+ 143   3                      break;
+ 144   3                  case SET_CLOCK_HOUR:
+ 145   3                      set_clock_hour();
+ 146   3                      break;
+ 147   3                  case SET_CLOCK_MIN:
+ 148   3                      set_clock_min();
+ 149   3                      break;
+ 150   3                  case SET_ALARM_HOUR:
+ 151   3                      set_alarm_hour();
+ 152   3                      break;
+ 153   3                  case SET_ALARM_MIN:
+ 154   3                      set_alarm_min();
+ 155   3                      break;
+ 156   3              }
+ 157   2          }
+ 158   1      }
+ 159          
+ 160          /* initialization */
+ 161          void init_8051(void) {
+ 162   1          /* set timer0 and timer1 to 16-bit mode */
+ 163   1          TMOD |= 0x11;
+ 164   1      
+ 165   1          /* number of count for 1ms: 0.001 * 921583 */
+ 166   1          TH0 = 0xFC;
+ 167   1          TL0 = 0x66;
+ 168   1      
+ 169   1          /* enable timer0 */
+ 170   1          TR0 = 1;
+ 171   1      
+ 172   1          /* enable all interrupt */
+ 173   1          EA = 1;
+ 174   1      
+ 175   1          /* enable interrupt for timer0 */
+ 176   1          ET0 = 1;
+ 177   1          LED0 = LED_ON;
+ 178   1      }
+ 179          
+C51 COMPILER V9.02   MAIN                                                                  05/25/2014 19:40:59 PAGE 4   
+
+ 180          void play_music() {
+ 181   1          /* reset to beginning of the song */
+ 182   1          song_pos = 0;
+ 183   1      
+ 184   1          tune_index = song_bee[song_pos];
+ 185   1          TH1 = tune_high[tune_index];
+ 186   1          TL1 = tune_low[tune_index];
+ 187   1      
+ 188   1          /* enable timer1 */
+ 189   1          TR1 = 1;
+ 190   1          /* enable interrupt for timer1 */
+ 191   1          ET1 = 1;
+ 192   1          LED6 = LED_ON;
+ 193   1      }
+ 194          
+ 195          void stop_music() {
+ 196   1      
+ 197   1          /* disable timer1 and interrupt for timer1 */
+ 198   1          TR1 = 0;
+ 199   1          ET1 = 0;
+ 200   1          SPK = SPK_OFF;
+ 201   1          LED6 = LED_OFF;
+ 202   1      }
+ 203          
+ 204          void timer(void) {
+ 205   1          if(flags.t1ms)
+ 206   1          {
+ 207   2              flags.t1ms = 0;
+ 208   2              cnt1ms_for_5ms++;
+ 209   2          }
+ 210   1      
+ 211   1          if(cnt1ms_for_5ms >= 5) {
+ 212   2              cnt1ms_for_5ms = 0;
+ 213   2              flags.t5ms = 1;
+ 214   2              cnt5ms_for_10ms++;
+ 215   2          }
+ 216   1      
+ 217   1          if(cnt5ms_for_10ms >= 2) {
+ 218   2              cnt5ms_for_10ms = 0;
+ 219   2              flags.t10ms = 1;
+ 220   2              cnt10ms_for_20ms++;
+ 221   2          }
+ 222   1      
+ 223   1          if(cnt10ms_for_20ms >= 2) {
+ 224   2              cnt10ms_for_20ms = 0;
+ 225   2              flags.t20ms = 1;
+ 226   2              cnt20ms_for_100ms++;
+ 227   2          }
+ 228   1      
+ 229   1          if(cnt20ms_for_100ms >= 5) {
+ 230   2              cnt20ms_for_100ms = 0;
+ 231   2              flags.t100ms = 1;
+ 232   2              cnt100ms_for_200ms++;
+ 233   2          }
+ 234   1      
+ 235   1          if(cnt100ms_for_200ms >= 2) {
+ 236   2              cnt100ms_for_200ms = 0;
+ 237   2              flags.t200ms = 1;
+ 238   2              cnt200ms_for_1s++;
+ 239   2          }
+ 240   1      
+ 241   1          if(cnt200ms_for_1s >= 5) {
+C51 COMPILER V9.02   MAIN                                                                  05/25/2014 19:40:59 PAGE 5   
+
+ 242   2              cnt200ms_for_1s = 0;
+ 243   2              flags.t1s = 1;
+ 244   2          }
+ 245   1      }
+ 246          
+ 247          void reset_timer(void) {
+ 248   1          flags.t1ms = 0;
+ 249   1          flags.t5ms = 0;
+ 250   1          flags.t10ms = 0;
+ 251   1          flags.t20ms = 0;
+ 252   1          flags.t100ms = 0;
+ 253   1          flags.t1s = 0;
+ 254   1      
+ 255   1          cnt1ms_for_5ms = 0;
+ 256   1          cnt5ms_for_10ms = 0;
+ 257   1          cnt10ms_for_20ms = 0;
+ 258   1          cnt20ms_for_100ms = 0;
+ 259   1          cnt200ms_for_1s = 0;
+ 260   1      }
+ 261          
+ 262          void check_button(void) {
+ 263   1      
+ 264   1      
+ 265   1          /* anti-ghost:
+ 266   1           * button will be scanned as click when
+ 267   1           * voltage sequence is high*6 -> low -> low
+ 268   1           * button is not click:
+ 269   1           * 0xFF
+ 270   1           * '__'__'__'__'__'__'__'__
+ 271   1           * 
+ 272   1           *
+ 273   1           *
+ 274   1           * 20ms after button click:
+ 275   1           * 0xFE
+ 276   1           * '__'__'__'__'__'__'__
+ 277   1           *                      |
+ 278   1           *                      |__
+ 279   1           *                      
+ 280   1           * 40ms after button click:
+ 281   1           * 0xFC
+ 282   1           * '__'__'__'__'__'__
+ 283   1           *                   |
+ 284   1           *                   |__'__
+ 285   1           */
+ 286   1          
+ 287   1          /* reset current voltage to high */
+ 288   1          button_status[0] |= 0x01;
+ 289   1          button_status[1] |= 0x01;
+ 290   1          button_status[2] |= 0x01;
+ 291   1          button_status[3] |= 0x01;
+ 292   1      
+ 293   1          /* if click, set current voltage to low */
+ 294   1          if(B0 == 0 && B1 && B2 && B3) {
+ 295   2              button_status[0] &= 0xFE;
+ 296   2          }
+ 297   1          if(B1 == 0 && B0 && B2 && B3) {
+ 298   2              button_status[1] &= 0xFE;
+ 299   2          }
+ 300   1          if(B2 == 0 && B0 && B1 && B3) {
+ 301   2              button_status[2] &= 0xFE;
+ 302   2          }
+ 303   1          if(B3 == 0 && B0 && B1 && B2) {
+C51 COMPILER V9.02   MAIN                                                                  05/25/2014 19:40:59 PAGE 6   
+
+ 304   2              button_status[3] &= 0xFE;
+ 305   2          }
+ 306   1          
+ 307   1          /* whether status is 'high*6 -> low -> low' */
+ 308   1          flags.b0_click = button_status[0] == 0xFC ? 1 : 0;
+ 309   1          flags.b1_click = button_status[1] == 0xFC ? 1 : 0;
+ 310   1          flags.b2_click = button_status[2] == 0xFC ? 1 : 0;
+ 311   1          flags.b3_click = button_status[3] == 0xFC ? 1 : 0;
+ 312   1      
+ 313   1          /* shift for next time */
+ 314   1          button_status[0] <<= 1;
+ 315   1          button_status[1] <<= 1;
+ 316   1          button_status[2] <<= 1;
+ 317   1          button_status[3] <<= 1;
+ 318   1      }
+ 319          
+ 320          void display_seg(unsigned char hour, unsigned char min) {
+ 321   1          volatile unsigned char temp_hour = hour, 
+ 322   1                                 temp_min = min;
+ 323   1          
+ 324   1          /* display next 7-segment display */
+ 325   1          seg_number++;
+ 326   1          seg_number = seg_number % 4;
+ 327   1      
+ 328   1          /* reset 7-segment display */
+ 329   1          SEGMENT = 0xff;
+ 330   1          SEG0 = 1;
+ 331   1          SEG1 = 1;
+ 332   1          SEG2 = 1;
+ 333   1          SEG3 = 1;
+ 334   1      
+ 335   1          switch(seg_number) {
+ 336   2              case 0:
+ 337   2                  SEGMENT = seg_arr[temp_hour / 10];
+ 338   2                  SEG0 = 0;
+ 339   2                  break;
+ 340   2              case 1:
+ 341   2                  SEGMENT = seg_arr[temp_hour % 10];
+ 342   2                  SEG1 = 0;
+ 343   2                  break;
+ 344   2              case 2:
+ 345   2                  SEGMENT = seg_arr[temp_min / 10];
+ 346   2                  SEG2 = 0;
+ 347   2                  break;
+ 348   2              case 3:
+ 349   2                  SEGMENT = seg_arr[temp_min % 10];
+ 350   2                  SEG3 = 0;
+ 351   2                  break;
+ 352   2              default:
+ 353   2                  SEGMENT = 0xff;
+ 354   2                  SEG0 = 1;
+ 355   2                  SEG1 = 1;
+ 356   2                  SEG2 = 1;
+ 357   2                  SEG3 = 1;
+ 358   2          }
+ 359   1      }
+ 360          
+ 361          void clock_count_up(void) {
+ 362   1          clock_min++;
+ 363   1          if(clock_min >= 60) {
+ 364   2              clock_hour++;
+ 365   2              clock_min = 0;
+C51 COMPILER V9.02   MAIN                                                                  05/25/2014 19:40:59 PAGE 7   
+
+ 366   2          }
+ 367   1          if(clock_hour >= 24) {
+ 368   2              clock_hour = 0;
+ 369   2          }
+ 370   1      }
+ 371          
+ 372          void clock_run() {
+ 373   1          if(flags.t5ms) {
+ 374   2              flags.t5ms = 0;
+ 375   2              display_seg(clock_hour, clock_min);
+ 376   2          }
+ 377   1      
+ 378   1          if(flags.t20ms) {
+ 379   2              flags.t20ms = 0;
+ 380   2              check_button();
+ 381   2              /* CLOCK_RUN -> SET_CLOCK_HOUR */
+ 382   2              if(flags.b0_click) {
+ 383   3                  LED0 = LED_OFF;
+ 384   3                  LED1 = LED_ON;
+ 385   3                  state = SET_CLOCK_HOUR;
+ 386   3              }
+ 387   2              /* CLOCK_RUN -> SET_ALARM_HOUR */
+ 388   2              else if(flags.b1_click) {
+ 389   3                  LED0 = LED_OFF;
+ 390   3                  LED3 = LED_ON;
+ 391   3                  state = SET_ALARM_HOUR;
+ 392   3              }
+ 393   2              else if(flags.b2_click) {
+ 394   3                  stop_music();
+ 395   3              }
+ 396   2              else if(flags.b3_click) {
+ 397   3                  LED7 = ~LED7;
+ 398   3                  alarm_enable = ~alarm_enable;
+ 399   3              }
+ 400   2          }
+ 401   1          if(flags.t1s) {
+ 402   2              flags.t1s = 0;
+ 403   2              clock_count_up();
+ 404   2              if (alarm_enable) {
+ 405   3                  if (clock_hour == alarm_hour &&
+ 406   3                      clock_min == alarm_min) {
+ 407   4                      play_music();
+ 408   4                  }
+ 409   3              }
+ 410   2          }
+ 411   1      }
+ 412          
+ 413          void set_clock_hour() {
+ 414   1          if(flags.t5ms) {
+ 415   2              flags.t5ms = 0;
+ 416   2              display_seg(clock_hour, clock_min);
+ 417   2          }
+ 418   1      
+ 419   1          if(flags.t20ms) {
+ 420   2              flags.t20ms = 0;
+ 421   2              check_button();
+ 422   2              /* SET_CLOCK_HOUR -> CLOCK_RUN */
+ 423   2              if(flags.b0_click) {
+ 424   3                  LED1 = LED_OFF;
+ 425   3                  LED0 = LED_ON;
+ 426   3                  state = CLOCK_RUN;
+ 427   3                  reset_timer();
+C51 COMPILER V9.02   MAIN                                                                  05/25/2014 19:40:59 PAGE 8   
+
+ 428   3              }
+ 429   2              /* SET_CLOCK_HOUR -> SET_CLOCK_MIN*/
+ 430   2              else if(flags.b1_click) {
+ 431   3                  LED1 = LED_OFF;
+ 432   3                  LED2 = LED_ON;
+ 433   3                  state = SET_CLOCK_MIN;
+ 434   3              }
+ 435   2              else if(flags.b2_click) {
+ 436   3                  if (clock_hour <= 0) {
+ 437   4                      clock_hour = 23;
+ 438   4                  } else{
+ 439   4                      clock_hour--;
+ 440   4                  }
+ 441   3              }
+ 442   2              else if(flags.b3_click) {
+ 443   3                  if (clock_hour >= 23) {
+ 444   4                      clock_hour = 0;
+ 445   4                  } else {
+ 446   4                      clock_hour++;
+ 447   4                  }
+ 448   3              }
+ 449   2          }
+ 450   1      }
+ 451          
+ 452          void set_clock_min() {
+ 453   1          if(flags.t5ms) {
+ 454   2              flags.t5ms = 0;
+ 455   2              display_seg(clock_hour, clock_min);
+ 456   2          }
+ 457   1      
+ 458   1          if(flags.t20ms) {
+ 459   2              flags.t20ms = 0;
+ 460   2              check_button();
+ 461   2              /* SET_CLOCK_MIN -> CLOCK_RUN */
+ 462   2              if(flags.b0_click) {
+ 463   3                  LED2 = LED_OFF;
+ 464   3                  LED0 = LED_ON;
+ 465   3                  state = CLOCK_RUN;
+ 466   3                  reset_timer();
+ 467   3              }
+ 468   2              /* SET_CLOCK_MIN -> SET_CLOCK_HOUR */
+ 469   2              else if(flags.b1_click) {
+ 470   3                  LED2 = LED_OFF;
+ 471   3                  LED1 = LED_ON;
+ 472   3                  state = SET_CLOCK_HOUR;
+ 473   3              }
+ 474   2              else if(flags.b2_click) {
+ 475   3                  if (clock_min <= 0) {
+ 476   4                      clock_min = 59;
+ 477   4                  } else {
+ 478   4                      clock_min--;
+ 479   4                  }
+ 480   3              }
+ 481   2              else if(flags.b3_click) {
+ 482   3                  if (clock_min >= 59) {
+ 483   4                      clock_min = 0;
+ 484   4                  } else {
+ 485   4                      clock_min++;
+ 486   4                  }
+ 487   3              }
+ 488   2          }
+ 489   1      }
+C51 COMPILER V9.02   MAIN                                                                  05/25/2014 19:40:59 PAGE 9   
+
+ 490          
+ 491          void set_alarm_hour() {
+ 492   1          if(flags.t5ms) {
+ 493   2              flags.t5ms = 0;
+ 494   2              display_seg(alarm_hour, alarm_min);
+ 495   2          }
+ 496   1      
+ 497   1          if(flags.t20ms) {
+ 498   2              flags.t20ms = 0;
+ 499   2              check_button();
+ 500   2              /* SET_ALARM_HOUR -> CLOCK_RUN */
+ 501   2              if(flags.b0_click) {
+ 502   3                  LED3 = LED_OFF;
+ 503   3                  LED0 = LED_ON;
+ 504   3                  state = CLOCK_RUN;
+ 505   3                  reset_timer();
+ 506   3              }
+ 507   2              /* SET_ALARM_HOUR -> SET_ALARM_MIN */
+ 508   2              else if(flags.b1_click) {
+ 509   3                  LED3 = LED_OFF;
+ 510   3                  LED4 = LED_ON;
+ 511   3                  state = SET_ALARM_MIN;
+ 512   3              }
+ 513   2              else if(flags.b2_click) {
+ 514   3                  if (alarm_hour <= 0) {
+ 515   4                      alarm_hour = 23;
+ 516   4                  } else{
+ 517   4                      alarm_hour--;
+ 518   4                  }
+ 519   3              }
+ 520   2              else if(flags.b3_click) {
+ 521   3                  if (alarm_hour >= 23) {
+ 522   4                      alarm_hour = 0;
+ 523   4                  } else {
+ 524   4                      alarm_hour++;
+ 525   4                  }
+ 526   3              }
+ 527   2          }
+ 528   1          /* clock keep going when setting alarm */
+ 529   1          if(flags.t1s) {
+ 530   2              flags.t1s = 0;
+ 531   2              clock_count_up();
+ 532   2          }
+ 533   1      }
+ 534          
+ 535          void set_alarm_min() {
+ 536   1          if(flags.t5ms) {
+ 537   2              flags.t5ms = 0;
+ 538   2              display_seg(alarm_hour, alarm_min);
+ 539   2          }
+ 540   1      
+ 541   1          if(flags.t20ms) {
+ 542   2              flags.t20ms = 0;
+ 543   2              check_button();
+ 544   2              /* SET_ALARM_MIN -> CLOCK_RUN */
+ 545   2              if(flags.b0_click) {
+ 546   3                  LED4 = LED_OFF;
+ 547   3                  LED0 = LED_ON;
+ 548   3                  state = CLOCK_RUN;
+ 549   3                  reset_timer();
+ 550   3              }
+ 551   2              /* SET_ALARM_MIN -> SET_ALARM_HOUR */
+C51 COMPILER V9.02   MAIN                                                                  05/25/2014 19:40:59 PAGE 10  
+
+ 552   2              else if(flags.b1_click) {
+ 553   3                  LED4 = LED_OFF;
+ 554   3                  LED3 = LED_ON;
+ 555   3                  state = SET_ALARM_HOUR;
+ 556   3              }
+ 557   2              else if(flags.b2_click) {
+ 558   3                  if (alarm_min <= 0) {
+ 559   4                      alarm_min = 59;
+ 560   4                  } else {
+ 561   4                      alarm_min--;
+ 562   4                  }
+ 563   3              }
+ 564   2              else if(flags.b3_click) {
+ 565   3                  if (alarm_min >= 59) {
+ 566   4                      alarm_min = 0;
+ 567   4                  } else {
+ 568   4                      alarm_min++;
+ 569   4                  }
+ 570   3              }
+ 571   2          }
+ 572   1          /* clock keep going when setting alarm */
+ 573   1          if(flags.t1s) {
+ 574   2              flags.t1s = 0;
+ 575   2              clock_count_up();
+ 576   2          }
+ 577   1      }
+ 578          
+ 579          void timer0(void) interrupt 1 {
+ 580   1          /* reference to init_8051 */
+ 581   1          TH0 = 0xFC;
+ 582   1          TL0 = 0x66;
+ 583   1          TF0 = 0;
+ 584   1          flags.t1ms = 1;
+ 585   1      }
+ 586          
+ 587          void timer1(void) interrupt 3 {
+ 588   1          TH1 = tune_high[tune_index];
+ 589   1          TL1 = tune_low[tune_index];
+ 590   1          TF1 = 0;
+ 591   1          SPK = ~SPK;
+ 592   1      }
+C51 COMPILER V9.02   MAIN                                                                  05/25/2014 19:40:59 PAGE 11  
+
+NAME                                    CLASS   MSPACE  TYPE    OFFSET  SIZE
+====                                    =====   ======  ====    ======  ====
+
+
+P0 . . . . . . . . . . . . . . . . . .  SFR      DATA   U_CHAR   0080H  1
+SET_CLOCK_MIN. . . . . . . . . . . . .  E_CONST  -----  U_CHAR   -----  1
+check_button . . . . . . . . . . . . .  PUBLIC   CODE   PROC     0003H  -----
+SET_ALARM_MIN. . . . . . . . . . . . .  E_CONST  -----  U_CHAR   -----  1
+State. . . . . . . . . . . . . . . . .  * TAG *  -----  ENUM     -----  -----
+EA . . . . . . . . . . . . . . . . . .  ABSBIT   -----  BIT      00AFH  1
+cnt20ms_for_100ms. . . . . . . . . . .  PUBLIC   DATA   U_CHAR   0000H  1
+flags. . . . . . . . . . . . . . . . .  PUBLIC   DATA   STRUCT   0001H  2
+P1_0 . . . . . . . . . . . . . . . . .  ABSBIT   -----  BIT      0090H  1
+P2_0 . . . . . . . . . . . . . . . . .  ABSBIT   -----  BIT      00A0H  1
+P1_1 . . . . . . . . . . . . . . . . .  ABSBIT   -----  BIT      0091H  1
+P2_1 . . . . . . . . . . . . . . . . .  ABSBIT   -----  BIT      00A1H  1
+P1_2 . . . . . . . . . . . . . . . . .  ABSBIT   -----  BIT      0092H  1
+P2_2 . . . . . . . . . . . . . . . . .  ABSBIT   -----  BIT      00A2H  1
+P1_3 . . . . . . . . . . . . . . . . .  ABSBIT   -----  BIT      0093H  1
+P2_3 . . . . . . . . . . . . . . . . .  ABSBIT   -----  BIT      00A3H  1
+P1_4 . . . . . . . . . . . . . . . . .  ABSBIT   -----  BIT      0094H  1
+P2_4 . . . . . . . . . . . . . . . . .  ABSBIT   -----  BIT      00A4H  1
+P2_5 . . . . . . . . . . . . . . . . .  ABSBIT   -----  BIT      00A5H  1
+P1_6 . . . . . . . . . . . . . . . . .  ABSBIT   -----  BIT      0096H  1
+P2_6 . . . . . . . . . . . . . . . . .  ABSBIT   -----  BIT      00A6H  1
+P1_7 . . . . . . . . . . . . . . . . .  ABSBIT   -----  BIT      0097H  1
+P3_6 . . . . . . . . . . . . . . . . .  ABSBIT   -----  BIT      00B6H  1
+P2_7 . . . . . . . . . . . . . . . . .  ABSBIT   -----  BIT      00A7H  1
+_display_seg . . . . . . . . . . . . .  PUBLIC   CODE   PROC     0007H  -----
+  hour?740 . . . . . . . . . . . . . .  * REG *  DATA   U_CHAR   0007H  1
+  min?741. . . . . . . . . . . . . . .  * REG *  DATA   U_CHAR   0005H  1
+  temp_hour?742. . . . . . . . . . . .  AUTO     DATA   U_CHAR   0000H  1
+  temp_min?743 . . . . . . . . . . . .  AUTO     DATA   U_CHAR   0001H  1
+timer. . . . . . . . . . . . . . . . .  PUBLIC   CODE   PROC     0000H  -----
+state. . . . . . . . . . . . . . . . .  PUBLIC   DATA   U_CHAR   0003H  1
+main . . . . . . . . . . . . . . . . .  PUBLIC   CODE   PROC     0000H  -----
+button_status. . . . . . . . . . . . .  PUBLIC   DATA   ARRAY    0004H  4
+cnt5ms_for_10ms. . . . . . . . . . . .  PUBLIC   DATA   U_CHAR   0008H  1
+reset_timer. . . . . . . . . . . . . .  PUBLIC   CODE   PROC     0000H  -----
+seg_number . . . . . . . . . . . . . .  PUBLIC   DATA   U_CHAR   0009H  1
+clock_hour . . . . . . . . . . . . . .  PUBLIC   DATA   U_CHAR   000AH  1
+alarm_hour . . . . . . . . . . . . . .  PUBLIC   DATA   U_CHAR   000BH  1
+clock_min. . . . . . . . . . . . . . .  PUBLIC   DATA   U_CHAR   000CH  1
+TMOD . . . . . . . . . . . . . . . . .  SFR      DATA   U_CHAR   0089H  1
+alarm_min. . . . . . . . . . . . . . .  PUBLIC   DATA   U_CHAR   000DH  1
+cnt100ms_for_200ms . . . . . . . . . .  PUBLIC   DATA   U_CHAR   000EH  1
+tune_index . . . . . . . . . . . . . .  PUBLIC   DATA   U_CHAR   000FH  1
+play_music . . . . . . . . . . . . . .  PUBLIC   CODE   PROC     0000H  -----
+tune_high. . . . . . . . . . . . . . .  PUBLIC   DATA   ARRAY    0010H  8
+CLOCK_RUN. . . . . . . . . . . . . . .  E_CONST  -----  U_CHAR   -----  1
+clock_run. . . . . . . . . . . . . . .  PUBLIC   CODE   PROC     0000H  -----
+song_bee . . . . . . . . . . . . . . .  PUBLIC   DATA   ARRAY    0018H  64
+ET0. . . . . . . . . . . . . . . . . .  ABSBIT   -----  BIT      00A9H  1
+ET1. . . . . . . . . . . . . . . . . .  ABSBIT   -----  BIT      00ABH  1
+TF0. . . . . . . . . . . . . . . . . .  ABSBIT   -----  BIT      008DH  1
+TF1. . . . . . . . . . . . . . . . . .  ABSBIT   -----  BIT      008FH  1
+TH0. . . . . . . . . . . . . . . . . .  SFR      DATA   U_CHAR   008CH  1
+stop_music . . . . . . . . . . . . . .  PUBLIC   CODE   PROC     0000H  -----
+TH1. . . . . . . . . . . . . . . . . .  SFR      DATA   U_CHAR   008DH  1
+TL0. . . . . . . . . . . . . . . . . .  SFR      DATA   U_CHAR   008AH  1
+TL1. . . . . . . . . . . . . . . . . .  SFR      DATA   U_CHAR   008BH  1
+C51 COMPILER V9.02   MAIN                                                                  05/25/2014 19:40:59 PAGE 12  
+
+NAME                                    CLASS   MSPACE  TYPE    OFFSET  SIZE
+====                                    =====   ======  ====    ======  ====
+
+
+timer0 . . . . . . . . . . . . . . . .  PUBLIC   CODE   PROC     0000H  -----
+timer1 . . . . . . . . . . . . . . . .  PUBLIC   CODE   PROC     0000H  -----
+TR0. . . . . . . . . . . . . . . . . .  ABSBIT   -----  BIT      008CH  1
+cnt10ms_for_20ms . . . . . . . . . . .  PUBLIC   DATA   U_CHAR   0058H  1
+TR1. . . . . . . . . . . . . . . . . .  ABSBIT   -----  BIT      008EH  1
+alarm_enable . . . . . . . . . . . . .  PUBLIC   DATA   U_CHAR   0059H  1
+SET_CLOCK_HOUR . . . . . . . . . . . .  E_CONST  -----  U_CHAR   -----  1
+SET_ALARM_HOUR . . . . . . . . . . . .  E_CONST  -----  U_CHAR   -----  1
+set_clock_hour . . . . . . . . . . . .  PUBLIC   CODE   PROC     0000H  -----
+set_alarm_hour . . . . . . . . . . . .  PUBLIC   CODE   PROC     0000H  -----
+clock_count_up . . . . . . . . . . . .  PUBLIC   CODE   PROC     0003H  -----
+set_clock_min. . . . . . . . . . . . .  PUBLIC   CODE   PROC     0000H  -----
+set_alarm_min. . . . . . . . . . . . .  PUBLIC   CODE   PROC     0000H  -----
+init_8051. . . . . . . . . . . . . . .  PUBLIC   CODE   PROC     0000H  -----
+seg_arr. . . . . . . . . . . . . . . .  PUBLIC   DATA   ARRAY    005AH  10
+cnt200ms_for_1s. . . . . . . . . . . .  PUBLIC   DATA   U_CHAR   0064H  1
+song_pos . . . . . . . . . . . . . . .  PUBLIC   DATA   U_CHAR   0065H  1
+Flags. . . . . . . . . . . . . . . . .  * TAG *  -----  STRUCT   -----  2
+  t1ms . . . . . . . . . . . . . . . .  MEMBER   -----  FIELD    0000H  1.0
+  t5ms . . . . . . . . . . . . . . . .  MEMBER   -----  FIELD    0000H  1.1
+  t10ms. . . . . . . . . . . . . . . .  MEMBER   -----  FIELD    0000H  1.2
+  t20ms. . . . . . . . . . . . . . . .  MEMBER   -----  FIELD    0000H  1.3
+  t100ms . . . . . . . . . . . . . . .  MEMBER   -----  FIELD    0000H  1.4
+  t200ms . . . . . . . . . . . . . . .  MEMBER   -----  FIELD    0000H  1.5
+  t1s. . . . . . . . . . . . . . . . .  MEMBER   -----  FIELD    0000H  1.6
+  b0_click . . . . . . . . . . . . . .  MEMBER   -----  FIELD    0000H  1.7
+  b1_click . . . . . . . . . . . . . .  MEMBER   -----  FIELD    0000H  1.8
+  b2_click . . . . . . . . . . . . . .  MEMBER   -----  FIELD    0000H  1.9
+  b3_click . . . . . . . . . . . . . .  MEMBER   -----  FIELD    0000H  1.10
+tune_low . . . . . . . . . . . . . . .  PUBLIC   DATA   ARRAY    0066H  8
+cnt1ms_for_5ms . . . . . . . . . . . .  PUBLIC   DATA   U_CHAR   006EH  1
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =   1151    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =    111       2
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

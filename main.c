@@ -30,6 +30,7 @@
 
 
 struct Flags {
+    /* flags for elapsed time */
     unsigned t1ms:1;
     unsigned t5ms:1;
     unsigned t10ms:1;
@@ -38,6 +39,7 @@ struct Flags {
     unsigned t200ms:1;
     unsigned t1s:1;
 
+    /* flags for button click */
     unsigned b0_click:1;
     unsigned b1_click:1;
     unsigned b2_click:1;
@@ -45,6 +47,7 @@ struct Flags {
 
 } flags;
 
+/* finite state masine */
 enum State {
     CLOCK_RUN,
     SET_CLOCK_HOUR,
@@ -53,6 +56,7 @@ enum State {
     SET_ALARM_MIN
 } state;
 
+/* counter for time carrying */
 unsigned char cnt1ms_for_5ms,
               cnt5ms_for_10ms,
               cnt10ms_for_20ms,
@@ -61,8 +65,27 @@ unsigned char cnt1ms_for_5ms,
               cnt200ms_for_1s;
 
 
+/* 0-9 for 7-segment display*/
 unsigned char seg_arr[10] = {0xc0,0xf9,0xa4,0Xb0,0x99,0x92,0x82,0xd8,0x80,0X90};
-// 65535 - 1/fep/2*921583
+
+/* which 7-segment we want to display */
+unsigned char seg_number;
+
+/* (TH, TL) = 65535 - 1 / F / 2 * 921583
+ * 1 / F: T
+ * T / 2: half for high voltage and half for low voltage
+ * ___     ___     ___     ___     
+ *    |   |   |   |   |   |   |   
+ *    |___|   |___|   |___|   |___
+ *    '   '       '       '
+ *     T/2            T
+ *     
+ * 921583: machine cycle per second (11.059 MHz / 12)
+ * T / 2 * 921583: number of count to flip voltage
+ *
+ * F: frequency
+ * T: period
+ */
 unsigned char tune_high[8] = { 0, 0xFE, 0xFE, 0xFE, 0xFE, 0xFE, 0xFE, 0xFF};
 unsigned char tune_low[8] = { 0, 0x46, 0x77, 0xA1, 0xB5, 0xD9, 0xF3, 0x16};
 unsigned char song_bee[] = {
@@ -70,14 +93,17 @@ unsigned char song_bee[] = {
     5, 3, 3, 3, 4, 2, 2, 2, 1, 3, 5, 5, 3, 3 ,3, 3,
     2, 2, 2, 2, 2, 3, 4, 4, 3, 3, 3, 3, 3, 4, 5, 5,
     5, 3, 3, 3, 4, 2, 2, 2, 1, 3, 5, 5, 1, 1, 1, 1};
+
+/* where we are in the song */
 unsigned char song_pos;
+
+/* what current tune is */
 unsigned char tune_index;
-unsigned char song_stop;
 unsigned char  clock_hour, clock_min;
 unsigned char  alarm_hour, alarm_min;
 unsigned char alarm_enable;
-unsigned char seg_number;
 
+/* least resent 8 status for button */
 unsigned char button_status[4];
 
 
@@ -100,8 +126,14 @@ void main(void) {
     init_8051();
     while(1) {
         timer();
+        /* if alarm is buzzing (LED6 is on),
+         * play the next tune in the song per 200ms
+         */
         if (flags.t200ms && LED6 == LED_ON) {
             flags.t200ms = 0;
+            /* find the next tune.
+             * go back to beginning at end.
+             */
             song_pos = (song_pos + 1) % sizeof(song_bee);
             tune_index = song_bee[song_pos];
         }
@@ -125,27 +157,44 @@ void main(void) {
     }
 }
 
+/* initialization */
 void init_8051(void) {
+    /* set timer0 and timer1 to 16-bit mode */
     TMOD |= 0x11;
+
+    /* number of count for 1ms: 0.001 * 921583 */
     TH0 = 0xFC;
     TL0 = 0x66;
+
+    /* enable timer0 */
     TR0 = 1;
+
+    /* enable all interrupt */
     EA = 1;
+
+    /* enable interrupt for timer0 */
     ET0 = 1;
     LED0 = LED_ON;
 }
 
 void play_music() {
+    /* reset to beginning of the song */
     song_pos = 0;
+
     tune_index = song_bee[song_pos];
     TH1 = tune_high[tune_index];
     TL1 = tune_low[tune_index];
+
+    /* enable timer1 */
     TR1 = 1;
+    /* enable interrupt for timer1 */
     ET1 = 1;
     LED6 = LED_ON;
 }
 
 void stop_music() {
+
+    /* disable timer1 and interrupt for timer1 */
     TR1 = 0;
     ET1 = 0;
     SPK = SPK_OFF;
@@ -211,11 +260,37 @@ void reset_timer(void) {
 }
 
 void check_button(void) {
+
+
+    /* anti-ghost:
+     * button will be scanned as click when
+     * voltage sequence is high*6 -> low -> low
+     * button is not click:
+     * 0xFF
+     * '__'__'__'__'__'__'__'__
+     * 
+     *
+     *
+     * 20ms after button click:
+     * 0xFE
+     * '__'__'__'__'__'__'__
+     *                      |
+     *                      |__
+     *                      
+     * 40ms after button click:
+     * 0xFC
+     * '__'__'__'__'__'__
+     *                   |
+     *                   |__'__
+     */
+    
+    /* reset current voltage to high */
     button_status[0] |= 0x01;
     button_status[1] |= 0x01;
     button_status[2] |= 0x01;
     button_status[3] |= 0x01;
 
+    /* if click, set current voltage to low */
     if(B0 == 0 && B1 && B2 && B3) {
         button_status[0] &= 0xFE;
     }
@@ -228,13 +303,14 @@ void check_button(void) {
     if(B3 == 0 && B0 && B1 && B2) {
         button_status[3] &= 0xFE;
     }
-
+    
+    /* whether status is 'high*6 -> low -> low' */
     flags.b0_click = button_status[0] == 0xFC ? 1 : 0;
     flags.b1_click = button_status[1] == 0xFC ? 1 : 0;
     flags.b2_click = button_status[2] == 0xFC ? 1 : 0;
     flags.b3_click = button_status[3] == 0xFC ? 1 : 0;
 
-
+    /* shift for next time */
     button_status[0] <<= 1;
     button_status[1] <<= 1;
     button_status[2] <<= 1;
@@ -245,9 +321,11 @@ void display_seg(unsigned char hour, unsigned char min) {
     volatile unsigned char temp_hour = hour, 
                            temp_min = min;
     
+    /* display next 7-segment display */
     seg_number++;
     seg_number = seg_number % 4;
 
+    /* reset 7-segment display */
     SEGMENT = 0xff;
     SEG0 = 1;
     SEG1 = 1;
@@ -300,11 +378,13 @@ void clock_run() {
     if(flags.t20ms) {
         flags.t20ms = 0;
         check_button();
+        /* CLOCK_RUN -> SET_CLOCK_HOUR */
         if(flags.b0_click) {
             LED0 = LED_OFF;
             LED1 = LED_ON;
             state = SET_CLOCK_HOUR;
         }
+        /* CLOCK_RUN -> SET_ALARM_HOUR */
         else if(flags.b1_click) {
             LED0 = LED_OFF;
             LED3 = LED_ON;
@@ -339,12 +419,14 @@ void set_clock_hour() {
     if(flags.t20ms) {
         flags.t20ms = 0;
         check_button();
+        /* SET_CLOCK_HOUR -> CLOCK_RUN */
         if(flags.b0_click) {
             LED1 = LED_OFF;
             LED0 = LED_ON;
             state = CLOCK_RUN;
             reset_timer();
         }
+        /* SET_CLOCK_HOUR -> SET_CLOCK_MIN*/
         else if(flags.b1_click) {
             LED1 = LED_OFF;
             LED2 = LED_ON;
@@ -376,12 +458,14 @@ void set_clock_min() {
     if(flags.t20ms) {
         flags.t20ms = 0;
         check_button();
+        /* SET_CLOCK_MIN -> CLOCK_RUN */
         if(flags.b0_click) {
             LED2 = LED_OFF;
             LED0 = LED_ON;
             state = CLOCK_RUN;
             reset_timer();
         }
+        /* SET_CLOCK_MIN -> SET_CLOCK_HOUR */
         else if(flags.b1_click) {
             LED2 = LED_OFF;
             LED1 = LED_ON;
@@ -413,12 +497,14 @@ void set_alarm_hour() {
     if(flags.t20ms) {
         flags.t20ms = 0;
         check_button();
+        /* SET_ALARM_HOUR -> CLOCK_RUN */
         if(flags.b0_click) {
             LED3 = LED_OFF;
             LED0 = LED_ON;
             state = CLOCK_RUN;
             reset_timer();
         }
+        /* SET_ALARM_HOUR -> SET_ALARM_MIN */
         else if(flags.b1_click) {
             LED3 = LED_OFF;
             LED4 = LED_ON;
@@ -439,6 +525,7 @@ void set_alarm_hour() {
             }
         }
     }
+    /* clock keep going when setting alarm */
     if(flags.t1s) {
         flags.t1s = 0;
         clock_count_up();
@@ -454,12 +541,14 @@ void set_alarm_min() {
     if(flags.t20ms) {
         flags.t20ms = 0;
         check_button();
+        /* SET_ALARM_MIN -> CLOCK_RUN */
         if(flags.b0_click) {
             LED4 = LED_OFF;
             LED0 = LED_ON;
             state = CLOCK_RUN;
             reset_timer();
         }
+        /* SET_ALARM_MIN -> SET_ALARM_HOUR */
         else if(flags.b1_click) {
             LED4 = LED_OFF;
             LED3 = LED_ON;
@@ -480,6 +569,7 @@ void set_alarm_min() {
             }
         }
     }
+    /* clock keep going when setting alarm */
     if(flags.t1s) {
         flags.t1s = 0;
         clock_count_up();
@@ -487,6 +577,7 @@ void set_alarm_min() {
 }
 
 void timer0(void) interrupt 1 {
+    /* reference to init_8051 */
     TH0 = 0xFC;
     TL0 = 0x66;
     TF0 = 0;
